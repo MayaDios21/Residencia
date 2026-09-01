@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punto de Venta - Sistema POS</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="assets/imagenes/Logo tcos el compita.jpg" alt="Tacos El Compita" class="logo">
+            <h1>Tacos de Birria El Compita</h1>
+            <p>Punto de Venta</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('pos')">Punto de Venta</button>
+            <button class="tab" onclick="showTab('settings')">Configuración</button>
+            <button class="tab" onclick="showTab('admin')">Administrar Productos</button>
+            <button class="tab" onclick="showTab('categories')">Gestionar Categorías</button>
+            <button class="tab" onclick="showTab('sales')">Historial de Ventas</button>
+            <button class="tab" onclick="showTab('cashbox')">Control de Fondo de Caja</button>
+        </div>
+
+        <div id="pos-tab" class="tab-content active">
+            <div class="pos-layout">
+                <div class="products-section">
+                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Productos Disponibles</h3>
+                    
+                    <!-- Pestañas de Categorías -->
+                    <div class="category-tabs" id="category-tabs">
+                        <!-- Las pestañas se cargarán aquí -->
+                    </div>
+                    
+                    <div id="products-grid" class="products-grid">
+                        <!-- Los productos se cargarán aquí -->
+                    </div>
+                </div>
+
+                <div class="cart-section">
+                    <div class="cart-header">
+                        <h3>Carrito de Compras</h3>
+                        <p>Productos seleccionados</p>
+                    </div>
+                    <div class="cart-items" id="cart-items">
+                        <div class="empty-cart">
+                            <span>•</span>
+                            <p>Carrito vacío<br>Selecciona productos para comenzar</p>
+                        </div>
+                    </div>
+                    <div class="cart-total" id="cart-total" style="display: none;">
+                        <div class="total-line">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">$0.00</span>
+                        </div>
+                        <div class="total-line">
+                            <span>IVA (8%):</span>
+                            <span id="tax">$0.00</span>
+                        </div>
+                        <div class="total-line final">
+                            <span>Total:</span>
+                            <span id="total">$0.00</span>
+                        </div>
+                        <button class="checkout-btn" onclick="checkout()">
+                            Procesar Venta
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-tab" class="tab-content">
+            <div class="settings-section">
+                <h3>⚙️ Configuración del Sistema</h3>
+                
+                <div class="settings-container">
+                    <!-- Panel de Tipo de Cambio -->
+                    <div class="settings-panel">
+                        <h4>💱 Tipo de Cambio (Dólar)</h4>
+                        <form id="exchange-rate-form" onsubmit="updateExchangeRate(event)">
+                            <div class="form-group">
+                                <label for="exchange-rate-input">Tipo de Cambio Actual (MXN/USD):</label>
+                                <div class="exchange-rate-container">
+                                    <input type="number" id="exchange-rate-input" step="0.01" min="0" required placeholder="19.50">
+                                    <span class="exchange-rate-display" id="exchange-rate-display">$ ---</span>
+                                </div>
+                            </div>
+                            <p class="exchange-rate-info">Ingresa el tipo de cambio actual para convertir precios a dólares</p>
+                            <button type="submit" class="btn">Guardar Tipo de Cambio</button>
+                        </form>
+                        <div class="exchange-rate-preview">
+                            <p><strong>Tipo de cambio actual:</strong> <span id="current-exchange-rate">$ ---</span> MXN por USD</p>
+                        </div>
+                    </div>
+
+                    <!-- Panel de Información del Sistema (opcional para futuras opciones) -->
+                    <div class="settings-panel">
+                        <h4>🧾 Configurar IVA</h4>
+                        <form id="tax-rate-form" onsubmit="updateTaxRate(event)">
+                            <div class="form-group">
+                                <label for="tax-rate-input">Porcentaje de IVA (%):</label>
+                                <div class="tax-rate-container">
+                                    <input type="number" id="tax-rate-input" step="0.01" min="0" max="100" required placeholder="8.00">
+                                    <span class="tax-rate-display" id="tax-rate-display">---</span>
+                                </div>
+                            </div>
+                            <p class="tax-rate-info">Ingresa el porcentaje de IVA que se aplicará a las ventas</p>
+                            <button type="submit" class="btn">Guardar IVA</button>
+                        </form>
+                        <div class="tax-rate-preview">
+                            <p><strong>IVA actual:</strong> <span id="current-tax-rate">---</span>%</p>
+                            <p style="font-size: 0.9em; color: white; margin-top: 10px;">
+                                Ejemplo: Si el IVA es 8% y el subtotal es $100, se agregarán $8
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Panel de Mantenimiento del Sistema -->
+                    <div class="settings-panel">
+                        <h4>⚙️ Mantenimiento del Sistema</h4>
+                        <p style="color: #2c3e50; margin-bottom: 15px;">Utiliza esta opción si hay problemas o quieres limpiar todos los datos.</p>
+                        <button class="btn" onclick="resetSystem()" style="background-color: #e74c3c;">🔄 Reiniciar Sistema (Datos por Defecto)</button>
+                        <p style="font-size: 0.85em; color: #2c3e50; margin-top: 10px;">
+                            ⚠️ Esto eliminará todos los datos guardados y volverá a cargar los productos por defecto.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-tab" class="tab-content">
+            <div class="admin-section">
+                <div class="admin-panel">
+                    <h3>Agregar Producto</h3>
+                    <form id="add-product-form" onsubmit="addProduct(event)">
+                        <div class="form-group">
+                            <label for="product-name">Nombre del Producto:</label>
+                            <input type="text" id="product-name" required placeholder="Ej: Coca Cola 600ml">
+                        </div>
+                        <div class="form-group">
+                            <label for="product-price">Precio:</label>
+                            <input type="number" id="product-price" step="0.01" min="0" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="product-category">Categoría:</label>
+                            <div class="category-selector">
+                                <select id="product-category" required>
+                                    <option value="">Seleccionar categoría...</option>
+                                    <!-- Las categorías se cargarán aquí -->
+                                </select>
+                                <button type="button" class="btn-small" onclick="showNewCategoryForm()">+ Nueva</button>
+                            </div>
+                        </div>
+                        <div class="form-group" id="new-category-form" style="display: none;">
+                            <label for="new-category-name">Nombre de nueva categoría:</label>
+                            <div class="category-selector">
+                                <input type="text" id="new-category-name" placeholder="Ej: Bebidas Calientes">
+                                <input type="color" id="new-category-color" value="#722F37" title="Color de categoría">
+                                <button type="button" class="btn-small" onclick="createNewCategory()">Crear</button>
+                                <button type="button" class="btn-small-cancel" onclick="hideNewCategoryForm()">Cancelar</button>
+                            </div>
+                        </div>
+                        <!-- Add an image upload field to the product form -->
+                        <div class="form-group">
+                            <label for="product-image">Imagen del Producto</label>
+                            <input type="file" id="product-image" name="product-image" accept="image/*">
+                        </div>
+                        <button type="submit" class="btn">Agregar Producto</button>
+                    </form>
+                </div>
+
+                <div class="admin-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0;">📋 Lista de Productos</h3>
+                        <button class="btn-small btn-danger" onclick="deleteAllProducts()" title="Eliminar todos los productos">🗑️ Borrar Todos</button>
+                    </div>
+                    <div id="product-list" class="product-list">
+                        <!-- Los productos se cargarán aquí -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="categories-tab" class="tab-content">
+            <div class="admin-section">
+                <div class="admin-panel">
+                    <h3>Crear Nueva Categoría</h3>
+                    <form id="add-category-form" onsubmit="addCategoryFromForm(event)">
+                        <div class="form-group">
+                            <label for="category-name">Nombre de la Categoría:</label>
+                            <input type="text" id="category-name" required placeholder="Ej: Bebidas Calientes">
+                        </div>
+                        <div class="form-group">
+                            <label for="category-color">Color de la Categoría:</label>
+                            <div class="color-selector">
+                                <input type="color" id="category-color" value="#722F37">
+                                <div class="color-presets">
+                                    <div class="color-preset" style="background: #722F37" onclick="setColor('#722F37')"></div>
+                                    <div class="color-preset" style="background: #3498db" onclick="setColor('#3498db')"></div>
+                                    <div class="color-preset" style="background: #e74c3c" onclick="setColor('#e74c3c')"></div>
+                                    <div class="color-preset" style="background: #f39c12" onclick="setColor('#f39c12')"></div>
+                                    <div class="color-preset" style="background: #9b59b6" onclick="setColor('#9b59b6')"></div>
+                                    <div class="color-preset" style="background: #27ae60" onclick="setColor('#27ae60')"></div>
+                                    <div class="color-preset" style="background: #34495e" onclick="setColor('#34495e')"></div>
+                                    <div class="color-preset" style="background: #e67e22" onclick="setColor('#e67e22')"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn">Crear Categoría</button>
+                    </form>
+                </div>
+
+                <div class="admin-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0;">Lista de Categorías</h3>
+                        <button class="btn-small btn-danger" onclick="deleteAllCategories()" title="Eliminar todas las categorías">🗑️ Borrar Todas</button>
+                    </div>
+                    <div id="category-list" class="category-list">
+                        <!-- Las categorías se cargarán aquí -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sales-tab" class="tab-content">
+            <div class="sales-section">
+                <div class="sales-header">
+                    <h3>Historial de Ventas</h3>
+                    <div class="sales-filters">
+                        <div class="filter-group">
+                            <label for="date-filter">Filtrar por:</label>
+                            <select id="date-filter" onchange="filterSales()">
+                                <option value="today">Hoy</option>
+                                <option value="week">Esta Semana</option>
+                                <option value="month">Este Mes</option>
+                                <option value="all">Todas las Ventas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="date-range">Rango de fechas:</label>
+                            <input type="date" id="start-date" onchange="filterSales()">
+                            <span>a</span>
+                            <input type="date" id="end-date" onchange="filterSales()">
+                        </div>
+                        <button class="btn-small" onclick="exportSales()">Exportar</button>
+                        <button class="btn-small" onclick="verifySalesIntegrity()">Verificar</button>
+                        <button class="btn-small btn-danger" onclick="clearSalesHistory()">Borrar Historial</button>
+                    </div>
+                </div>
+
+                <div class="sales-summary">
+                    <div class="summary-card">
+                        <h4>Total del Período</h4>
+                        <span id="total-sales">$0.00</span>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Número de Ventas</h4>
+                        <span id="total-transactions">0</span>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Productos Vendidos</h4>
+                        <span id="total-items">0</span>
+                    </div>
+                    <div class="summary-card">
+                        <h4>Promedio por Venta</h4>
+                        <span id="average-sale">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="sales-list-container">
+                    <div class="sales-list-header">
+                        <h4>Lista de Ventas</h4>
+                        <div class="search-box">
+                            <input type="text" id="sales-search" placeholder="Buscar por ID o productos..." onkeyup="searchSales()">
+                        </div>
+                    </div>
+                    <div id="sales-list" class="sales-list">
+                        <div class="empty-sales">
+                            <span>•</span>
+                            <p>No hay ventas registradas<br>Las ventas aparecerán aquí</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="cashbox-tab" class="tab-content">
+            <div class="cashbox-section">
+                <h3>Control de Fondo de Caja</h3>
+                
+                <div class="cashbox-container">
+                    <!-- Formulario -->
+                    <div class="cashbox-form-panel">
+                        <h4>Registrar Movimiento de Caja</h4>
+                        <form id="cashbox-form" onsubmit="calculateCashBox(event)">
+                            <div class="form-group">
+                                <label for="initial-fund">Fondo Inicial del Día ($):</label>
+                                <input type="number" id="initial-fund" step="0.01" min="0" required placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="daily-sales">Ventas del Día ($):</label>
+                                <input type="number" id="daily-sales" step="0.01" min="0" required placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="minor-expenses">Gastos Menores ($):</label>
+                                <input type="number" id="minor-expenses" step="0.01" min="0" required placeholder="0.00">
+                            </div>
+                            <button type="submit" class="btn">Calcular</button>
+                        </form>
+                    </div>
+
+                    <!-- Resultados -->
+                    <div class="cashbox-results-panel" id="cashbox-results" style="display: none;">
+                        <h4>Resultados</h4>
+                        <div class="result-item">
+                            <span>Total en Caja:</span>
+                            <span class="result-value" id="total-cashbox">$0.00</span>
+                        </div>
+                        <div class="result-item">
+                            <span>Ventas Netas:</span>
+                            <span class="result-value" id="net-sales">$0.00</span>
+                        </div>
+                        <button class="btn btn-success" onclick="saveCashBoxRecord()">Guardar Registro</button>
+                    </div>
+                </div>
+
+                <!-- Tabla de Historial -->
+                <div class="cashbox-history-panel">
+                    <h4>Historial de Movimientos</h4>
+                    <div class="history-controls">
+                        <button class="btn-small" onclick="clearCashBoxHistory()" style="background: #e74c3c;">Limpiar Historial</button>
+                        <button class="btn-small" onclick="exportCashBoxHistory()">Exportar CSV</button>
+                    </div>
+                    <table class="cashbox-table" id="cashbox-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Fondo Inicial</th>
+                                <th>Ventas</th>
+                                <th>Gastos</th>
+                                <th>Total en Caja</th>
+                                <th>Ventas Netas</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cashbox-tbody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 20px; color: #999;">No hay registros</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
