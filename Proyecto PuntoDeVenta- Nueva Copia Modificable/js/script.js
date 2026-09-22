@@ -2,11 +2,31 @@
 ============================================
 SISTEMA POS - LÓGICA JAVASCRIPT
 ============================================
+
+Mapa general del archivo:
+1. Estado global y menú inicial: define los datos que usa todo el sistema.
+2. Persistencia de productos y categorías: guarda y recupera el catálogo.
+3. Historial de ventas: consulta, resume y administra las ventas registradas.
+4. Configuración: controla IVA y tipo de cambio.
+5. Navegación: cambia entre las pantallas del POS.
+6. Catálogo: muestra productos y permite administrar categorías.
+7. Carrito y ventas: calcula importes y registra transacciones.
+8. Interfaz de confirmación: muestra modales y notificaciones visuales.
+9. Inicialización: prepara el sistema al abrir la página.
+10. Caja: controla fondo inicial, ventas del día y cierre.
+11. Diagnóstico: conserva el carrito y ofrece funciones de mantenimiento.
+
+Regla general:
+- Las variables guardan el estado actual en memoria.
+- Las funciones modifican ese estado y actualizan la pantalla.
+- localStorage permite conservar los datos al cerrar o recargar el navegador.
 */
 
 // ============================================
 // VARIABLES GLOBALES
 // ============================================
+// Este módulo contiene la información base que comparten todas las pantallas:
+// productos, categorías, carrito, impuestos e identificadores consecutivos.
 
 // Base de datos de productos en memoria
 let products = [];
@@ -16,26 +36,38 @@ let categories = [];
 
 // Productos por defecto (solo se cargan la primera vez)
 const defaultProducts = [
-    { id: 1, name: "Coca Cola 600ml", price: 25.00, category: "Bebidas", image: null },
-    { id: 2, name: "Agua Natural 1L", price: 15.00, category: "Bebidas", image: null },
-    { id: 3, name: "Jugo Naranja", price: 28.00, category: "Bebidas", image: null },
-    { id: 4, name: "Sandwich Jamón", price: 45.00, category: "Comida", image: null },
-    { id: 5, name: "Café Americano", price: 30.00, category: "Bebidas", image: null },
-    { id: 6, name: "Papas Fritas", price: 20.00, category: "Snacks", image: null },
-    { id: 7, name: "Galletas Oreo", price: 35.00, category: "Postres", image: null },
-    { id: 8, name: "Chocolate Snickers", price: 22.00, category: "Postres", image: null }
+    { id: 1, name: "Taco de Birria", price: 30.00, category: "Tacos", image: "assets/imagenes/Taco Birria.jpg" },
+    { id: 2, name: "Taco de Birria Harina", price: 35.00, category: "Tacos", image: "assets/imagenes/Taco Birria Harina.jpg" },
+    { id: 3, name: "Quesabirria", price: 55.00, category: "Quesadillas", image: "assets/imagenes/Quesabirria.jpg" },
+    { id: 4, name: "Quesabirria Harina", price: 60.00, category: "Quesadillas", image: "assets/imagenes/Quesabirria Harina.jpg" },
+    { id: 5, name: "Consomé", price: 25.00, category: "Extras", image: "assets/imagenes/Consome.jpg" },
+    { id: 6, name: "Consomé con Carne", price: 35.00, category: "Extras", image: "assets/imagenes/Consome Con Carne.jpg" },
+    { id: 7, name: "Agua Grande", price: 20.00, category: "Bebidas", image: "assets/imagenes/Agua Grande.jpg" },
+    { id: 8, name: "Coca Cola 600ml", price: 25.00, category: "Bebidas", image: "assets/imagenes/Cocacola-lata.png" }
 ];
+
+const defaultProductImages = {
+    "Taco de Birria": "assets/imagenes/Taco Birria.jpg",
+    "Taco de Birria Harina": "assets/imagenes/Taco Birria Harina.jpg",
+    "Quesabirria": "assets/imagenes/Quesabirria.jpg",
+    "Quesabirria Harina": "assets/imagenes/Quesabirria Harina.jpg",
+    "Consomé": "assets/imagenes/Consome.jpg",
+    "Consomé con Carne": "assets/imagenes/Consome Con Carne.jpg",
+    "Agua Grande": "assets/imagenes/Agua Grande.jpg",
+    "Coca Cola 600ml": "assets/imagenes/Cocacola-lata.png"
+};
 
 // Categorías por defecto
 const defaultCategories = [
-    { id: 1, name: "Bebidas", color: "#3498db" },
-    { id: 2, name: "Comida", color: "#e74c3c" },
-    { id: 3, name: "Snacks", color: "#f39c12" },
-    { id: 4, name: "Postres", color: "#9b59b6" }
+    { id: 1, name: "Tacos", color: "#d35400" },
+    { id: 2, name: "Quesadillas", color: "#8e44ad" },
+    { id: 3, name: "Bebidas", color: "#3498db" },
+    { id: 4, name: "Extras", color: "#27ae60" }
 ];
 
 // Carrito de compras
 let cart = [];
+let pendingSale = null;
 
 // ID para nuevos productos y categorías
 let nextProductId = 9;
@@ -47,6 +79,8 @@ let activeCategory = "Todas";
 // ============================================
 // LIMPIEZA AUTOMÁTICA DE DATOS CORRUPTOS
 // ============================================
+// Este módulo revisa los datos guardados antes de usarlos y elimina únicamente
+// información inválida para evitar que un JSON dañado rompa la aplicación.
 
 /**
  * Limpia automáticamente datos corruptos del localStorage
@@ -95,6 +129,8 @@ cleanCorruptedData();
 // ============================================
 // FUNCIONES DE PERSISTENCIA (LocalStorage)
 // ============================================
+// Este módulo convierte el estado de productos y categorías a JSON para
+// guardarlo en el navegador y volver a cargarlo en la siguiente visita.
 
 /**
  * Guarda los productos en LocalStorage
@@ -124,6 +160,16 @@ function loadProductsFromStorage() {
     try {
         const savedProducts = localStorage.getItem('pos_products');
         const savedNextId = localStorage.getItem('pos_nextProductId');
+        const oldDemoProductNames = [
+            'Coca Cola 600ml',
+            'Agua Natural 1L',
+            'Jugo Naranja',
+            'Sandwich Jamón',
+            'Café Americano',
+            'Papas Fritas',
+            'Galletas Oreo',
+            'Chocolate Snickers'
+        ];
         
         if (savedProducts !== null) {
             // Hay datos guardados (aunque sea un array vacío)
@@ -135,11 +181,25 @@ function loadProductsFromStorage() {
                     // Si tiene contenido, validar la estructura
                     if (parsed.length > 0) {
                         const allValid = parsed.every(p => p.id && p.name && typeof p.price === 'number');
-                        if (allValid) {
+                        const hasOldDemoProducts = parsed.some(p => oldDemoProductNames.includes(p.name));
+
+                        if (allValid && !hasOldDemoProducts) {
                             products = parsed;
+                            normalizeProductImages();
                             console.log(`✅ ${products.length} productos cargados desde LocalStorage`);
                         } else {
-                            throw new Error('Estructura de producto inválida');
+                            if (hasOldDemoProducts) {
+                                console.warn('⚠️ Se detectaron productos de ejemplo antiguos, reemplazando por menú de taquería...');
+                            } else {
+                                console.warn('⚠️ Estructura de producto inválida, cargando por defecto...');
+                            }
+                            localStorage.removeItem('pos_products');
+                            products = JSON.parse(JSON.stringify(defaultProducts));
+                            products.forEach(p => {
+                                if (!p.hasOwnProperty('image')) p.image = defaultProductImages[p.name] || null;
+                                if (!p.image) p.image = defaultProductImages[p.name] || null;
+                            });
+                            saveProducts();
                         }
                     } else {
                         // Array vacío es válido (el usuario borró todos los productos)
@@ -154,7 +214,8 @@ function loadProductsFromStorage() {
                 localStorage.removeItem('pos_products');
                 products = JSON.parse(JSON.stringify(defaultProducts));
                 products.forEach(p => {
-                    if (!p.hasOwnProperty('image')) p.image = null;
+                    if (!p.hasOwnProperty('image')) p.image = defaultProductImages[p.name] || null;
+                    if (!p.image) p.image = defaultProductImages[p.name] || null;
                 });
                 saveProducts();
             }
@@ -163,7 +224,8 @@ function loadProductsFromStorage() {
             console.log('🆕 Primera carga: cargando productos por defecto');
             products = JSON.parse(JSON.stringify(defaultProducts));
             products.forEach(p => {
-                if (!p.hasOwnProperty('image')) p.image = null;
+                if (!p.hasOwnProperty('image')) p.image = defaultProductImages[p.name] || null;
+                if (!p.image) p.image = defaultProductImages[p.name] || null;
             });
             saveProducts();
             console.log(` ${products.length} productos por defecto cargados (primera carga)`);
@@ -171,12 +233,21 @@ function loadProductsFromStorage() {
         
         if (savedNextId) {
             nextProductId = parseInt(savedNextId);
+            if (Number.isNaN(nextProductId) || nextProductId < defaultProducts.length + 1) {
+                nextProductId = defaultProducts.length + 1;
+            }
+        } else {
+            nextProductId = defaultProducts.length + 1;
         }
         
     } catch (error) {
         console.error(' Error crítico al cargar productos:', error);
         // Último recurso: usar por defecto
         products = JSON.parse(JSON.stringify(defaultProducts));
+        products.forEach(p => {
+            if (!p.hasOwnProperty('image')) p.image = defaultProductImages[p.name] || null;
+            if (!p.image) p.image = defaultProductImages[p.name] || null;
+        });
         saveProducts();
     }
 }
@@ -209,6 +280,7 @@ function loadCategoriesFromStorage() {
     try {
         const savedCategories = localStorage.getItem('pos_categories');
         const savedNextId = localStorage.getItem('pos_nextCategoryId');
+        const oldDemoCategories = ['Bebidas', 'Comida', 'Snacks', 'Postres'];
         
         if (savedCategories !== null) {
             // Hay datos guardados (aunque sea un array vacío)
@@ -216,11 +288,18 @@ function loadCategoriesFromStorage() {
             
             // Validar que sea un array válido (puede estar vacío si el usuario borró todo)
             if (Array.isArray(parsed)) {
-                categories = parsed;
-                if (parsed.length > 0) {
+                const hasOldDemoCategories = parsed.some(category => oldDemoCategories.includes(category.name));
+                if (parsed.length > 0 && !hasOldDemoCategories) {
+                    categories = parsed;
                     console.log(`✅ ${categories.length} categorías cargadas desde LocalStorage`);
                 } else {
-                    console.log('✅ Array de categorías vacío (el usuario eliminó todas las categorías)');
+                    if (hasOldDemoCategories) {
+                        console.warn('⚠️ Se detectaron categorías de ejemplo antiguas, reemplazando por taquería...');
+                    } else {
+                        console.log('✅ Array de categorías vacío (el usuario eliminó todas las categorías)');
+                    }
+                    categories = [...defaultCategories];
+                    saveCategories();
                 }
             } else {
                 console.warn('⚠️ Datos de categorías inválidos, cargando por defecto');
@@ -236,6 +315,11 @@ function loadCategoriesFromStorage() {
         
         if (savedNextId) {
             nextCategoryId = parseInt(savedNextId);
+            if (Number.isNaN(nextCategoryId) || nextCategoryId < defaultCategories.length + 1) {
+                nextCategoryId = defaultCategories.length + 1;
+            }
+        } else {
+            nextCategoryId = defaultCategories.length + 1;
         }
         
     } catch (error) {
@@ -295,7 +379,11 @@ function deleteAllCategories() {
         confirmMsg += `\n\n${productsWithCategories.length} producto(s) serán movidos a "Sin Categoría".`;
     }
     
-    if (confirm(confirmMsg)) {
+    openActionModal(
+        'Eliminar categorías',
+        confirmMsg,
+        'Eliminar categorías',
+        () => {
         // Mover todos los productos a "Sin Categoría"
         products.forEach(product => {
             if (categories.some(c => c.name === product.category)) {
@@ -319,8 +407,9 @@ function deleteAllCategories() {
         // Resetear categoría activa
         activeCategory = "Todas";
         
-        alert('✅ Todas las categorías han sido eliminadas');
-    }
+        showNotification('✅ Todas las categorías han sido eliminadas');
+        }
+    );
 }
 
 function deleteCategory(categoryId) {
@@ -335,24 +424,36 @@ function deleteCategory(categoryId) {
     
     if (productsInCategory.length > 0) {
         const confirmMsg = `La categoría "${category.name}" tiene ${productsInCategory.length} producto(s).\n\n¿Mover productos a "Sin Categoría" y eliminar la categoría?`;
-        if (!confirm(confirmMsg)) {
-            return false;
-        }
-        
-        // Mover productos a "Sin Categoría"
-        products.forEach(product => {
-            if (product.category === category.name) {
-                product.category = "Sin Categoría";
+        openActionModal(
+            'Eliminar categoría',
+            confirmMsg,
+            'Eliminar categoría',
+            () => {
+                products.forEach(product => {
+                    if (product.category === category.name) product.category = "Sin Categoría";
+                });
+                saveProducts();
+                categories = categories.filter(c => c.id !== categoryId);
+                saveCategories();
+                loadCategoryList();
+                loadCategoryTabs();
+                loadCategorySelector();
+                loadProducts();
+                loadProductList();
+                showNotification('✅ Categoría eliminada exitosamente');
             }
-        });
-        saveProducts();
+        );
+        return true;
     }
-    
-    // Eliminar categoría
     categories = categories.filter(c => c.id !== categoryId);
     saveCategories();
-    
     console.log(' Categoría eliminada:', category.name);
+    loadCategoryList();
+    loadCategoryTabs();
+    loadCategorySelector();
+    loadProducts();
+    loadProductList();
+    showNotification('✅ Categoría eliminada exitosamente');
     return true;
 }
 
@@ -367,7 +468,9 @@ function getProductsByCategory(categoryName) {
     return products.filter(product => product.category === categoryName);
 }
 
-// Configuración del sistema
+// Configuración del sistema:
+// TAX_RATE define el porcentaje de IVA y exchangeRate se usa para mostrar
+// equivalencias en dólares sin cambiar el precio original en pesos.
 // TAX_RATE ahora es una variable que puede ser modificada
 let TAX_RATE = 0.08; // 8% de IVA (valor por defecto)
 
@@ -380,6 +483,8 @@ let salesHistory = [];
 // ============================================
 // FUNCIONES DE CARGA DE CONFIGURACIÓN
 // ============================================
+// Este módulo carga el historial y las preferencias guardadas, calcula los
+// totales del día y actualiza los valores de IVA y tipo de cambio en pantalla.
 
 /**
  * Carga el historial de ventas desde LocalStorage
@@ -487,6 +592,66 @@ function updateSalesSummary() {
     if (averageSaleEl) averageSaleEl.textContent = `$${averageSale.toFixed(2)}`;
 }
 
+function getLocalDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function updateBusinessDate() {
+    const dateElement = document.getElementById('current-business-date');
+    if (!dateElement) return;
+    dateElement.textContent = new Intl.DateTimeFormat('es-MX', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    }).format(new Date());
+}
+
+function shouldOpenCashBoxForToday() {
+    const today = getLocalDateKey();
+    const hasOpening = openingCash.dateKey === today && openingCash.amount > 0;
+    const hasClosing = cashBoxRecords.some(record => record.dateKey === today);
+    return !hasOpening && !hasClosing;
+}
+
+function focusOpeningCashField() {
+    const initialFund = document.getElementById('initial-fund');
+    if (initialFund) {
+        initialFund.focus();
+        initialFund.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function openDailyStartIfNeeded() {
+    if (!shouldOpenCashBoxForToday()) return;
+    showTab('cashbox');
+    focusOpeningCashField();
+    showNotification('📅 Nueva jornada: registra el fondo inicial para comenzar.');
+}
+
+function getTodaySalesSummary() {
+    const today = getLocalDateKey();
+    const sales = salesHistory.filter(sale => getLocalDateKey(new Date(sale.date)) === today);
+    return {
+        total: sales.reduce((sum, sale) => sum + (sale.total || 0), 0),
+        count: sales.length,
+        items: sales.reduce((sum, sale) => sum + (sale.items || 0), 0)
+    };
+}
+
+function updateTodaySalesSummary() {
+    const summary = getTodaySalesSummary();
+    const total = document.getElementById('today-sales-total');
+    const count = document.getElementById('today-sales-count');
+    const items = document.getElementById('today-items-count');
+    if (total) total.textContent = `$${summary.total.toFixed(2)}`;
+    if (count) count.textContent = summary.count;
+    if (items) items.textContent = summary.items;
+}
+
 /**
  * Funciones auxiliares para el historial de ventas
  */
@@ -508,12 +673,17 @@ function verifySalesIntegrity() {
 }
 
 function clearSalesHistory() {
-    if (confirm('⚠️ ¿Estás seguro de borrar todo el historial de ventas?')) {
-        salesHistory = [];
-        localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
-        loadSalesHistoryTab();
-        alert('✅ Historial borrado');
-    }
+    openActionModal(
+        'Borrar historial de ventas',
+        'Se eliminarán todas las ventas registradas. Esta acción no se puede deshacer.',
+        'Borrar historial',
+        () => {
+            salesHistory = [];
+            localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
+            loadSalesHistoryTab();
+            showNotification('✅ Historial de ventas borrado');
+        }
+    );
 }
 
 /**
@@ -594,11 +764,18 @@ function updateExchangeRate(event) {
             alert('⚠️ Ingresa un tipo de cambio válido');
             return;
         }
-        exchangeRate = newRate;
-        localStorage.setItem('pos_exchangeRate', exchangeRate.toString());
-        displayExchangeRate();
-        alert(`✅ Tipo de cambio actualizado a $${exchangeRate.toFixed(2)} MXN/USD`);
-        console.log(`💱 Tipo de cambio actualizado: $${exchangeRate.toFixed(2)}`);
+        openActionModal(
+            'Guardar tipo de cambio',
+            `El tipo de cambio se actualizará a $${newRate.toFixed(2)} MXN por USD.`,
+            'Confirmar tipo de cambio',
+            () => {
+                exchangeRate = newRate;
+                localStorage.setItem('pos_exchangeRate', exchangeRate.toString());
+                displayExchangeRate();
+                showNotification(`✓ Tipo de cambio actualizado a $${exchangeRate.toFixed(2)}`);
+                console.log(`💱 Tipo de cambio actualizado: $${exchangeRate.toFixed(2)}`);
+            }
+        );
     } catch (error) {
         console.error('Error al actualizar tipo de cambio:', error);
         alert('❌ Error al actualizar el tipo de cambio');
@@ -616,11 +793,18 @@ function updateTaxRate(event) {
             alert('⚠️ Ingresa un porcentaje de IVA válido (0-100)');
             return;
         }
-        TAX_RATE = newTaxPercent / 100;
-        localStorage.setItem('pos_taxRate', TAX_RATE.toString());
-        displayTaxRate();
-        alert(`✅ IVA actualizado a ${newTaxPercent.toFixed(2)}%`);
-        console.log(`📋 IVA actualizado: ${newTaxPercent.toFixed(2)}%`);
+        openActionModal(
+            'Guardar configuración de IVA',
+            `El IVA se actualizará a ${newTaxPercent.toFixed(2)}%.`,
+            'Confirmar IVA',
+            () => {
+                TAX_RATE = newTaxPercent / 100;
+                localStorage.setItem('pos_taxRate', TAX_RATE.toString());
+                displayTaxRate();
+                showNotification(`✓ IVA actualizado a ${newTaxPercent.toFixed(2)}%`);
+                console.log(`📋 IVA actualizado: ${newTaxPercent.toFixed(2)}%`);
+            }
+        );
     } catch (error) {
         console.error('Error al actualizar tasa de IVA:', error);
         alert('❌ Error al actualizar la tasa de IVA');
@@ -630,12 +814,21 @@ function updateTaxRate(event) {
 // ============================================
 // GESTIÓN DE PESTAÑAS
 // ============================================
+// Este módulo decide qué vista se muestra. También impide continuar hacia
+// otras pantallas si todavía no se registró el fondo inicial de la jornada.
 
 /**
  * Cambia entre las pestañas del sistema
  * @param {string} tabName - Nombre de la pestaña a mostrar
  */
 function showTab(tabName) {
+    if (tabName !== 'cashbox' && shouldOpenCashBoxForToday()) {
+        showNotification('🔒 Registra primero el fondo inicial para continuar.');
+        showTab('cashbox');
+        focusOpeningCashField();
+        return;
+    }
+
     // Remover clase active de todas las pestañas
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -663,6 +856,8 @@ function showTab(tabName) {
 // ============================================
 // GESTIÓN DE PRODUCTOS
 // ============================================
+// Este módulo dibuja el catálogo y administra productos: alta, edición,
+// eliminación, imágenes, precios y selección de categoría.
 
 /**
  * Carga las pestañas de categorías
@@ -747,6 +942,40 @@ function loadCategorySelector() {
 /**
  * Carga y muestra productos filtrados por categoría activa
  */
+function getProductImageUrl(product) {
+    if (!product) return null;
+
+    const fallbackImage = defaultProductImages[product.name] || product.image;
+    const imageValue = String(fallbackImage || '').trim();
+    if (!imageValue) return null;
+
+    if (imageValue.startsWith('data:') || imageValue.startsWith('http://') || imageValue.startsWith('https://')) {
+        return imageValue;
+    }
+
+    if (imageValue.startsWith('/')) {
+        return imageValue;
+    }
+
+    if (imageValue.startsWith('./') || imageValue.startsWith('assets/')) {
+        return imageValue;
+    }
+
+    return `assets/imagenes/${imageValue}`;
+}
+
+function normalizeProductImages() {
+    products = products.map(product => {
+        if (!product) return product;
+        const imageFromName = defaultProductImages[product.name];
+        const productImage = product.image || imageFromName;
+        return {
+            ...product,
+            image: productImage || null
+        };
+    });
+}
+
 function loadProducts() {
     console.log('🔵 loadProducts() ejecutada');
     const grid = document.getElementById('products-grid');
@@ -780,10 +1009,12 @@ function loadProducts() {
         card.className = 'product-card';
         card.onclick = () => addToCart(product);
         
+        const productImageUrl = getProductImageUrl(product);
+
         // Mostrar imagen del producto si existe
         let imageHTML = '';
-        if (product.image && product.image.startsWith('data:')) {
-            imageHTML = `<img src="${product.image}" alt="${escapeHtml(product.name)}" class="product-card-image">`;
+        if (productImageUrl) {
+            imageHTML = `<img src="${encodeURI(productImageUrl)}" alt="${escapeHtml(product.name)}" class="product-card-image">`;
         } else {
             // Placeholder si no hay imagen
             imageHTML = `<div class="product-card-placeholder">🍽️</div>`;
@@ -1213,7 +1444,11 @@ function deleteAllProducts() {
     
     const confirmMsg = `¿Estás seguro de eliminar TODOS los productos (${products.length})?\n\n⚠️ Esta acción no se puede deshacer.\n\nSe eliminarán todos los productos del sistema.`;
     
-    if (confirm(confirmMsg)) {
+    openActionModal(
+        'Eliminar productos',
+        confirmMsg,
+        'Eliminar productos',
+        () => {
         // Eliminar todos los productos
         products = [];
         
@@ -1228,8 +1463,9 @@ function deleteAllProducts() {
         renderProductList();
         renderCart();
         
-        alert('✅ Todos los productos han sido eliminados');
-    }
+        showNotification('✅ Todos los productos han sido eliminados');
+        }
+    );
 }
 
 function deleteProduct(productId) {
@@ -1240,7 +1476,11 @@ function deleteProduct(productId) {
         return;
     }
     
-    if (confirm(`¿Eliminar "${product.name}"?\n\nEsta acción no se puede deshacer.`)) {
+    openActionModal(
+        'Eliminar producto',
+        `¿Eliminar "${product.name}"? Esta acción no se puede deshacer.`,
+        'Eliminar producto',
+        () => {
         // Eliminar de la lista de productos
         products = products.filter(p => p.id !== productId);
         
@@ -1256,8 +1496,9 @@ function deleteProduct(productId) {
         loadCategoryTabs();
         updateCart();
         
-        alert(' Producto eliminado exitosamente!');
-    }
+        showNotification('✅ Producto eliminado exitosamente');
+        }
+    );
 }
 
 /**
@@ -1280,13 +1521,14 @@ function loadProductList() {
             ? `<span style="background: #722F37; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 8px;">${escapeHtml(product.category)}</span>`
             : '';
         
-        // Mostrar imagen en base64 o placeholder
-        const imageSrc = product.image && product.image.startsWith('data:') 
-            ? product.image 
+        // Mostrar imagen local, en base64 o placeholder
+        const imageSrc = getProductImageUrl(product);
+        const finalImageSrc = imageSrc
+            ? encodeURI(imageSrc)
             : 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22%3E%3Crect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%2214%22%3ESin imagen%3C/text%3E%3C/svg%3E';
         
         item.innerHTML = `
-            <img src="${imageSrc}" alt="${product.name}" class="product-image">
+            <img src="${finalImageSrc}" alt="${product.name}" class="product-image">
             <div>
                 <strong>${escapeHtml(product.name)}</strong>${categoryBadge}<br>
                 <span style="color: #27ae60; font-weight: 600;">$${product.price.toFixed(2)}</span>
@@ -1308,6 +1550,8 @@ function loadProductList() {
 // ============================================
 // GESTIÓN DEL CARRITO
 // ============================================
+// Este módulo controla los productos seleccionados para la venta, sus
+// cantidades, subtotales, impuestos y total final.
 
 /**
  * Agrega un producto al carrito
@@ -1414,10 +1658,17 @@ function updateQuantity(productId, change) {
 function removeFromCart(productId) {
     const item = cart.find(item => item.id === productId);
     
-    if (item && confirm(`¿Eliminar "${item.name}" del carrito?`)) {
-        cart = cart.filter(item => item.id !== productId);
-        updateCart();
-        showNotification(`➖ Producto eliminado del carrito`);
+    if (item) {
+        openActionModal(
+            'Eliminar del carrito',
+            `¿Eliminar "${item.name}" del carrito?`,
+            'Eliminar producto',
+            () => {
+                cart = cart.filter(item => item.id !== productId);
+                updateCart();
+                showNotification(`➖ Producto eliminado del carrito`);
+            }
+        );
     }
 }
 
@@ -1453,44 +1704,88 @@ function checkout() {
     const total = subtotal + tax;
     const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
     
-    // Convertir a dólares
-    const subtotalUSD = convertToUSD(subtotal);
-    const taxUSD = convertToUSD(tax);
-    const totalUSD = convertToUSD(total);
-    
-    // Generar resumen de la venta
-    let summary = `🧾 RESUMEN DE LA VENTA\n\n`;
-    summary += `Productos (${itemCount} artículos):\n`;
-    
-    cart.forEach(item => {
-        const itemTotalUSD = convertToUSD(item.price * item.quantity);
-        summary += `• ${item.name} x${item.quantity} - $${(item.price * item.quantity).toFixed(2)} MXN (USD $${itemTotalUSD.toFixed(2)})\n`;
-    });
-    
-    summary += `\n TOTALES:\n`;
-    summary += `Subtotal: $${subtotal.toFixed(2)} MXN / USD $${subtotalUSD.toFixed(2)}\n`;
-    summary += `IVA (${(TAX_RATE * 100)}%): $${tax.toFixed(2)} MXN / USD $${taxUSD.toFixed(2)}\n`;
-    summary += `TOTAL: $${total.toFixed(2)} MXN / USD $${totalUSD.toFixed(2)}`;
-    
-    if (confirm(`${summary}\n\n¿Confirmar la venta?`)) {
-        // Registrar la venta en el historial
-        recordSale(cart, subtotal, tax, total);
-        
-        // Procesar la venta
-        alert(` ¡Venta procesada exitosamente!\n\nTotal: $${total.toFixed(2)} MXN (USD $${totalUSD.toFixed(2)})\n ¡Gracias por su compra!`);
-        
-        // Limpiar el carrito
-        cart = [];
-        updateCart();
-        
-        // Cambiar a la pestaña de punto de venta
-        showTab('pos');
-    }
+    pendingSale = {
+        items: cart.map(item => ({ ...item })),
+        subtotal,
+        tax,
+        total,
+        itemCount
+    };
+    openSaleModal();
+}
+
+function openSaleModal() {
+    if (!pendingSale) return;
+    const itemsContainer = document.getElementById('sale-modal-items');
+    itemsContainer.innerHTML = pendingSale.items.map(item => `
+        <div class="sale-modal-item">
+            <div>
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${item.quantity} × $${item.price.toFixed(2)}</span>
+            </div>
+            <strong>$${(item.price * item.quantity).toFixed(2)}</strong>
+        </div>
+    `).join('');
+    document.getElementById('sale-modal-subtotal').textContent = `$${pendingSale.subtotal.toFixed(2)}`;
+    document.getElementById('sale-modal-tax').textContent = `$${pendingSale.tax.toFixed(2)}`;
+    document.getElementById('sale-modal-total').textContent = `$${pendingSale.total.toFixed(2)}`;
+    const modal = document.getElementById('sale-confirmation-modal');
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+    document.querySelector('.sale-confirm-btn').focus();
+}
+
+function closeSaleModal() {
+    const modal = document.getElementById('sale-confirmation-modal');
+    if (modal) modal.hidden = true;
+    document.body.classList.remove('modal-open');
+    pendingSale = null;
+}
+
+// pendingAction guarda temporalmente la operación que se ejecutará cuando el
+// usuario confirme un modal, por ejemplo borrar un registro o abrir la caja.
+let pendingAction = null;
+
+function openActionModal(eyebrow, message, confirmLabel, callback) {
+    pendingAction = callback;
+    document.getElementById('action-modal-eyebrow').textContent = eyebrow;
+    document.getElementById('action-modal-title').textContent = 'Revisar cambio';
+    document.getElementById('action-modal-message').textContent = message;
+    const confirmButton = document.querySelector('#action-confirmation-modal .sale-confirm-btn');
+    confirmButton.textContent = confirmLabel;
+    document.getElementById('action-confirmation-modal').hidden = false;
+    document.body.classList.add('modal-open');
+    confirmButton.focus();
+}
+
+function closeActionModal() {
+    document.getElementById('action-confirmation-modal').hidden = true;
+    document.body.classList.remove('modal-open');
+    pendingAction = null;
+}
+
+function confirmActionModal() {
+    const callback = pendingAction;
+    closeActionModal();
+    if (callback) callback();
+}
+
+function confirmSale() {
+    if (!pendingSale) return;
+    const sale = pendingSale;
+    recordSale(sale.items, sale.subtotal, sale.tax, sale.total);
+    cart = [];
+    updateCart();
+    closeSaleModal();
+    showNotification(`✓ Venta registrada por $${sale.total.toFixed(2)} MXN`);
+    showTab('pos');
 }
 
 // ============================================
 // FUNCIONES AUXILIARES
 // ============================================
+// Son herramientas reutilizables para escapar texto, convertir moneda,
+// registrar ventas y mostrar mensajes sin repetir código.
 
 /**
  * Escapa caracteres HTML para prevenir XSS
@@ -1538,6 +1833,7 @@ function recordSale(items, subtotal, tax, total) {
         
         salesHistory.push(sale);
         localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
+        updateTodaySalesSummary();
         console.log('✅ Venta registrada en historial:', sale);
     } catch (error) {
         console.error('❌ Error al registrar venta:', error);
@@ -1585,9 +1881,16 @@ function showNotification(message) {
     }, 3000);
 }
 
+// Mantiene los avisos del sistema dentro de la interfaz, sin diálogos nativos.
+window.alert = function(message) {
+    showNotification(String(message));
+};
+
 // ============================================
 // INICIALIZACIÓN DEL SISTEMA
 // ============================================
+// Este módulo se ejecuta al abrir la página: carga datos, renderiza controles,
+// muestra la fecha y dirige al inicio de caja cuando corresponde.
 
 /**
  * Inicializa el sistema cuando se carga la página
@@ -1624,7 +1927,10 @@ function initializeSystem() {
         // Asegurar que todos los productos tengan la propiedad image
         products.forEach(product => {
             if (!product.hasOwnProperty('image')) {
-                product.image = null;
+                product.image = defaultProductImages[product.name] || null;
+            }
+            if (!product.image) {
+                product.image = defaultProductImages[product.name] || null;
             }
         });
         saveProducts();
@@ -1641,8 +1947,11 @@ function initializeSystem() {
                 loadCategorySelector();
                 loadProducts();
                 updateCart();
+                updateTodaySalesSummary();
+                updateBusinessDate();
                 displayExchangeRate();
                 displayTaxRate();
+                openDailyStartIfNeeded();
                 
                 console.log('✅ Sistema POS inicializado correctamente');
                 console.log(` ${categories.length} categorías disponibles`);
@@ -1670,8 +1979,12 @@ function initializeSystem() {
  */
 function resetSystem() {
     console.log('🔄 Iniciando reinicio completo del sistema...');
-    
-    if (confirm('⚠️ Esto eliminará TODOS los datos guardados y cargará los productos por defecto.\n\n¿Continuar?')) {
+
+    openActionModal(
+        'Reiniciar sistema',
+        'Esto eliminará TODOS los datos guardados y cargará los productos por defecto.',
+        'Reiniciar sistema',
+        () => {
         try {
             // Limpiar localStorage completamente
             console.log('🗑️  Limpiando localStorage...');
@@ -1705,13 +2018,14 @@ function resetSystem() {
             console.log(`   - ${products.length} productos cargados`);
             console.log(`   - ${categories.length} categorías cargadas`);
             
-            alert('✅ Sistema reiniciado correctamente. Recargando página...');
+            showNotification('✅ Sistema reiniciado correctamente. Recargando página...');
             window.location.reload();
         } catch (error) {
             console.error('❌ Error al reiniciar:', error);
-            alert('Error al reiniciar el sistema. Abre la consola (F12) para más detalles.');
+            showNotification('Error al reiniciar el sistema. Revisa la consola para más detalles.');
         }
-    }
+        }
+    );
 }
 
 // Inicializar cuando se carga el DOM
@@ -1729,9 +2043,15 @@ if (document.readyState === 'loading') {
 // ============================================
 // CONTROL DE FONDO DE CAJA
 // ============================================
+// Este módulo administra la jornada de caja: fondo inicial, ventas del día,
+// cálculo del efectivo esperado, cierre, historial y exportación.
 
 // Array para almacenar registros de caja
 let cashBoxRecords = [];
+let openingCash = {
+    amount: 0,
+    dateKey: null
+};
 
 // ID para nuevos registros
 let nextCashBoxId = 1;
@@ -1777,11 +2097,60 @@ function loadCashBoxRecords() {
         if (savedNextId) {
             nextCashBoxId = parseInt(savedNextId);
         }
+
+        const savedOpeningCash = localStorage.getItem('pos_opening_cash');
+        if (savedOpeningCash) {
+            openingCash = JSON.parse(savedOpeningCash);
+        }
         
     } catch (error) {
         console.error(' Error al cargar registros de caja:', error);
         cashBoxRecords = [];
     }
+
+}
+
+function openCashBox(event) {
+    event.preventDefault();
+    const amount = parseFloat(document.getElementById('initial-fund').value);
+    if (isNaN(amount) || amount <= 0) {
+        alert('Ingresa un fondo inicial mayor que $0.00.');
+        return;
+    }
+    const today = getLocalDateKey();
+    if (cashBoxRecords.some(record => record.dateKey === today)) {
+        alert('El cierre de hoy ya fue registrado. No puedes abrir una nueva caja para esta jornada.');
+        return;
+    }
+    openActionModal(
+        'Guardar fondo de apertura',
+        `Se abrirá la caja con un fondo protegido de $${amount.toFixed(2)}.`,
+        'Confirmar apertura',
+        () => {
+            openingCash = { amount, dateKey: today };
+            localStorage.setItem('pos_opening_cash', JSON.stringify(openingCash));
+            updateOpeningCashDisplay();
+            updateCashBoxClosingVisibility();
+            showNotification(`✓ Fondo de apertura guardado: $${amount.toFixed(2)}`);
+        }
+    );
+}
+
+function updateOpeningCashDisplay() {
+    const today = getLocalDateKey();
+    const amount = openingCash.dateKey === today ? openingCash.amount : 0;
+    const input = document.getElementById('initial-fund');
+    const display = document.getElementById('opening-fund-value');
+    if (input && amount > 0) input.value = amount.toFixed(2);
+    if (display) display.textContent = `$${amount.toFixed(2)}`;
+}
+
+function updateCashBoxClosingVisibility() {
+    const isOpen = openingCash.dateKey === getLocalDateKey() && openingCash.amount > 0;
+    const closingStep = document.getElementById('cashbox-closing-step');
+    const closingForm = document.getElementById('cashbox-form');
+    if (closingStep) closingStep.hidden = !isOpen;
+    if (closingForm) closingForm.hidden = !isOpen;
 }
 
 /**
@@ -1792,37 +2161,34 @@ function calculateCashBox(event) {
     event.preventDefault();
     
     // Obtener valores del formulario
-    const initialFund = parseFloat(document.getElementById('initial-fund').value);
     const dailySales = parseFloat(document.getElementById('daily-sales').value);
-    const minorExpenses = parseFloat(document.getElementById('minor-expenses').value);
+    const initialFund = openingCash.dateKey === getLocalDateKey() ? openingCash.amount : 0;
     
     // Validaciones
-    if (isNaN(initialFund) || isNaN(dailySales) || isNaN(minorExpenses)) {
-        alert(' Por favor ingresa valores numéricos válidos');
+    if (initialFund <= 0) {
+        alert('Primero registra el fondo de apertura de la caja.');
         return;
     }
-    
-    if (initialFund < 0 || dailySales < 0 || minorExpenses < 0) {
-        alert(' Los valores no pueden ser negativos');
-        return;
-    }
-    
-    // Cálculos
-    const totalInCash = initialFund + dailySales - minorExpenses;
-    const netSales = totalInCash - initialFund;
+    const expectedCash = initialFund + dailySales;
+    const withdrawal = dailySales;
     
     // Almacenar en objeto actual
     currentCashBoxCalculation = {
         initialFund: initialFund,
         dailySales: dailySales,
-        minorExpenses: minorExpenses,
-        totalInCash: totalInCash,
-        netSales: netSales
+        minorExpenses: 0,
+        totalInCash: expectedCash,
+        netSales: withdrawal,
+        countedCash: expectedCash,
+        retainedFund: initialFund,
+        expectedCash: expectedCash,
+        difference: 0
     };
     
     // Mostrar resultados
-    document.getElementById('total-cashbox').textContent = `$${totalInCash.toFixed(2)}`;
-    document.getElementById('net-sales').textContent = `$${netSales.toFixed(2)}`;
+    document.getElementById('retained-cash').textContent = `$${initialFund.toFixed(2)}`;
+    document.getElementById('total-cashbox').textContent = `$${withdrawal.toFixed(2)}`;
+    document.getElementById('net-sales').textContent = `$${expectedCash.toFixed(2)}`;
     
     const resultsPanel = document.getElementById('cashbox-results');
     resultsPanel.style.display = 'block';
@@ -1837,8 +2203,14 @@ function calculateCashBox(event) {
  * Guarda el registro actual de caja en el historial
  */
 function saveCashBoxRecord() {
-    if (currentCashBoxCalculation.totalInCash === 0 && currentCashBoxCalculation.netSales === 0) {
+    if (!currentCashBoxCalculation.dailySales && !currentCashBoxCalculation.initialFund) {
         alert(' Debes calcular primero antes de guardar');
+        return;
+    }
+
+    const today = getLocalDateKey();
+    if (cashBoxRecords.some(record => record.dateKey === today)) {
+        alert('Ya existe un cierre registrado para hoy. Elimina el anterior si necesitas corregirlo.');
         return;
     }
     
@@ -1849,7 +2221,13 @@ function saveCashBoxRecord() {
         dailySales: currentCashBoxCalculation.dailySales,
         minorExpenses: currentCashBoxCalculation.minorExpenses,
         totalInCash: currentCashBoxCalculation.totalInCash,
-        netSales: currentCashBoxCalculation.netSales
+        netSales: currentCashBoxCalculation.netSales,
+        countedCash: currentCashBoxCalculation.countedCash,
+        retainedFund: currentCashBoxCalculation.retainedFund,
+        expectedCash: currentCashBoxCalculation.expectedCash,
+        difference: currentCashBoxCalculation.difference,
+        dateKey: today,
+        type: 'cierre'
     };
     
     // Agregar al inicio del array (más reciente primero)
@@ -1858,11 +2236,10 @@ function saveCashBoxRecord() {
     // Guardar en localStorage
     saveCashBoxRecords();
     
-    // Actualizar tabla
-    loadCashBoxTable();
-    
     // Limpiar formulario
     document.getElementById('cashbox-form').reset();
+    localStorage.removeItem('pos_opening_cash');
+    openingCash = { amount: 0, dateKey: null };
     
     // Ocultar resultados
     document.getElementById('cashbox-results').style.display = 'none';
@@ -1873,17 +2250,47 @@ function saveCashBoxRecord() {
         dailySales: 0,
         minorExpenses: 0,
         totalInCash: 0,
-        netSales: 0
+        netSales: 0,
+        countedCash: 0,
+        retainedFund: 0,
+        expectedCash: 0,
+        difference: 0
     };
-    
+
+    loadCashBoxTab();
     alert(' Registro guardado exitosamente!');
     console.log(' Nuevo registro de caja guardado:', record);
+}
+
+function confirmCashBoxRecord() {
+    if (!currentCashBoxCalculation.dailySales && !currentCashBoxCalculation.initialFund) {
+        alert(' Debes calcular primero antes de guardar');
+        return;
+    }
+    openActionModal(
+        'Finalizar jornada',
+        `Se registrará el cierre con $${currentCashBoxCalculation.dailySales.toFixed(2)} en ventas y se conservará un fondo de $${currentCashBoxCalculation.initialFund.toFixed(2)}.`,
+        'Confirmar cierre',
+        saveCashBoxRecord
+    );
 }
 
 /**
  * Carga la pestaña de control de caja
  */
 function loadCashBoxTab() {
+    const today = getTodaySalesSummary();
+    const dailySalesInput = document.getElementById('daily-sales');
+    if (dailySalesInput) dailySalesInput.value = today.total.toFixed(2);
+    updateOpeningCashDisplay();
+    updateCashBoxClosingVisibility();
+    const status = document.getElementById('cashbox-status');
+    if (status) {
+        status.textContent = cashBoxRecords.some(record => record.dateKey === getLocalDateKey())
+            ? '✓ Cierre de hoy registrado'
+            : 'Sin cierre de hoy';
+        status.classList.toggle('closed', status.textContent.includes('registrado'));
+    }
     loadCashBoxTable();
     updateCashBoxSummary();
 }
@@ -1913,7 +2320,7 @@ function loadCashBoxTable() {
     const tbody = document.getElementById('cashbox-tbody');
     
     if (cashBoxRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">No hay registros</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #999;">No hay cierres registrados</td></tr>';
         return;
     }
     
@@ -1930,13 +2337,17 @@ function loadCashBoxTable() {
         });
         
         const row = document.createElement('tr');
+        const countedCash = record.countedCash ?? record.totalInCash ?? 0;
+        const retainedFund = record.retainedFund ?? record.initialFund ?? 0;
+        const withdrawal = record.netSales ?? ((record.totalInCash || 0) - retainedFund);
         row.innerHTML = `
             <td>${formattedDate}</td>
             <td>$${record.initialFund.toFixed(2)}</td>
             <td>$${record.dailySales.toFixed(2)}</td>
             <td>$${record.minorExpenses.toFixed(2)}</td>
-            <td><strong>$${record.totalInCash.toFixed(2)}</strong></td>
-            <td><strong style="color: #27ae60;">$${record.netSales.toFixed(2)}</strong></td>
+            <td><strong>$${countedCash.toFixed(2)}</strong></td>
+            <td>$${retainedFund.toFixed(2)}</td>
+            <td><strong style="color: #27ae60;">$${withdrawal.toFixed(2)}</strong></td>
             <td>
                 <button class="action-btn" onclick="deleteCashBoxRecord(${record.id})">Eliminar</button>
             </td>
@@ -1959,12 +2370,17 @@ function deleteCashBoxRecord(recordId) {
     }
     
     const date = new Date(record.date).toLocaleDateString('es-MX');
-    if (confirm(`¿Eliminar el registro del ${date}?\n\nFondo: $${record.initialFund.toFixed(2)} | Ventas: $${record.dailySales.toFixed(2)}`)) {
-        cashBoxRecords = cashBoxRecords.filter(r => r.id !== recordId);
-        saveCashBoxRecords();
-        loadCashBoxTable();
-        alert(' Registro eliminado exitosamente');
-    }
+    openActionModal(
+        'Eliminar cierre de caja',
+        `¿Eliminar el registro del ${date}? Fondo: $${record.initialFund.toFixed(2)} | Ventas: $${record.dailySales.toFixed(2)}`,
+        'Eliminar registro',
+        () => {
+            cashBoxRecords = cashBoxRecords.filter(r => r.id !== recordId);
+            saveCashBoxRecords();
+            loadCashBoxTable();
+            showNotification('✅ Registro eliminado exitosamente');
+        }
+    );
 }
 
 /**
@@ -1978,16 +2394,24 @@ function clearCashBoxHistory() {
     
     const confirmMsg = ` ¿Estás seguro de que quieres borrar TODOS los registros de caja?\n\nSe eliminarán ${cashBoxRecords.length} registros.\n\nEsta acción NO se puede deshacer.`;
     
-    if (confirm(confirmMsg)) {
-        if (confirm('🚨 ÚLTIMA CONFIRMACIÓN\n\n¿Realmente quieres borrar TODO el historial de caja?\n\nEsta acción es IRREVERSIBLE.')) {
+    openActionModal(
+        'Borrar historial de caja',
+        confirmMsg,
+        'Continuar',
+        () => openActionModal(
+            'Última confirmación',
+            'Se borrará TODO el historial de caja. Esta acción es irreversible.',
+            'Borrar definitivamente',
+            () => {
             cashBoxRecords = [];
             nextCashBoxId = 1;
             saveCashBoxRecords();
             loadCashBoxTable();
-            alert(' Historial de caja borrado completamente');
+            showNotification('✅ Historial de caja borrado completamente');
             console.log(' Historial de caja borrado por el usuario');
-        }
-    }
+            }
+        )
+    );
 }
 
 /**
@@ -2000,13 +2424,16 @@ function exportCashBoxHistory() {
     }
     
     // Crear contenido CSV
-    let csvContent = 'Fecha y Hora,Fondo Inicial,Ventas del Día,Gastos Menores,Total en Caja,Ventas Netas\n';
+    let csvContent = 'Fecha y Hora,Fondo Inicial,Ventas del Día,Gastos o Retiros,Efectivo Contado,Fondo Retenido,Retiro\n';
     
     cashBoxRecords.forEach(record => {
         const date = new Date(record.date).toLocaleDateString('es-MX') + ' ' + 
                      new Date(record.date).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
         
-        csvContent += `"${date}",${record.initialFund.toFixed(2)},${record.dailySales.toFixed(2)},${record.minorExpenses.toFixed(2)},${record.totalInCash.toFixed(2)},${record.netSales.toFixed(2)}\n`;
+        const countedCash = record.countedCash ?? record.totalInCash ?? 0;
+        const retainedFund = record.retainedFund ?? record.initialFund ?? 0;
+        const withdrawal = record.netSales ?? ((record.totalInCash || 0) - retainedFund);
+        csvContent += `"${date}",${record.initialFund.toFixed(2)},${record.dailySales.toFixed(2)},${record.minorExpenses.toFixed(2)},${countedCash.toFixed(2)},${retainedFund.toFixed(2)},${withdrawal.toFixed(2)}\n`;
     });
     
     // Crear y descargar archivo
@@ -2129,6 +2556,8 @@ function saveProductChanges(productId) {
 // ============================================
 // NUEVAS FUNCIONES PARA PERSISTENCIA DEL CARRITO
 // ============================================
+// Guarda el carrito para que una recarga accidental no borre los productos
+// que estaban preparados para la siguiente venta.
 
 /**
  * Guarda el carrito en LocalStorage
@@ -2165,6 +2594,8 @@ function loadCartFromStorage() {
 // ============================================
 // FUNCIONES DE DEPURACIÓN Y MANTENIMIENTO
 // ============================================
+// Incluye utilidades para limpiar datos, cargar valores por defecto y revisar
+// el estado interno desde la consola del navegador.
 
 // Funciones de utilidad global
 window.limpiar = function() {

@@ -1,40 +1,73 @@
 <!DOCTYPE html>
+<!--
+    SISTEMA POS - TACOS DE BIRRIA EL COMPITA
+
+    Este archivo define la estructura de la interfaz. No contiene la lógica
+    principal: los eventos llaman funciones de js/script.js y la apariencia
+    se aplica desde css/styles.css.
+
+    Mapa de secciones:
+    1. head: configuración del documento y archivos externos.
+    2. header: identidad del negocio y fecha de la jornada.
+    3. tabs: navegación entre las pantallas.
+    4. pos-tab: catálogo, carrito y resumen del día.
+    5. settings-tab: IVA, tipo de cambio y mantenimiento.
+    6. admin-tab: alta y lista de productos.
+    7. categories-tab: alta y lista de categorías.
+    8. sales-tab: filtros, resumen e historial de ventas.
+    9. cashbox-tab: apertura, cierre e historial de caja.
+    10. modales: confirmación visual de ventas y acciones.
+-->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Punto de Venta - Sistema POS</title>
+    <!-- Hoja de estilos: colores, layout, modales y diseño responsive. -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div class="container">
+        <!-- Encabezado: muestra logo, nombre del negocio y fecha actual. -->
         <div class="header">
-            <img src="assets/imagenes/Logo tcos el compita.jpg" alt="Tacos El Compita" class="logo">
+            <img src="assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="Tacos El Compita" class="logo">
             <h1>Tacos de Birria El Compita</h1>
             <p>Punto de Venta</p>
+            <div class="business-day" aria-live="polite">
+                <span>Jornada del día</span>
+                <strong id="current-business-date">Cargando fecha...</strong>
+            </div>
         </div>
 
-        <div class="tabs">
-            <button class="tab active" onclick="showTab('pos')">Punto de Venta</button>
-            <button class="tab" onclick="showTab('settings')">Configuración</button>
-            <button class="tab" onclick="showTab('admin')">Administrar Productos</button>
-            <button class="tab" onclick="showTab('categories')">Gestionar Categorías</button>
-            <button class="tab" onclick="showTab('sales')">Historial de Ventas</button>
-            <button class="tab" onclick="showTab('cashbox')">Control de Fondo de Caja</button>
+        <!-- Navegación: cada botón activa una pantalla mediante showTab(). -->
+        <div class="tabs" role="navigation" aria-label="Navegación principal">
+            <button class="tab active" onclick="showTab('pos')">🛒 Venta</button>
+            <button class="tab" onclick="showTab('cashbox')">💵 Cierre de caja</button>
+            <button class="tab" onclick="showTab('sales')">📊 Ventas</button>
+            <button class="tab" onclick="showTab('admin')">🍽️ Productos</button>
+            <button class="tab" onclick="showTab('categories')">🏷️ Categorías</button>
+            <button class="tab" onclick="showTab('settings')">⚙️ Configuración</button>
         </div>
 
+        <!-- Venta: catálogo de productos, carrito y resumen de la jornada. -->
         <div id="pos-tab" class="tab-content active">
             <div class="pos-layout">
                 <div class="products-section">
-                    <h3 style="margin-bottom: 15px; color: #2c3e50;">Productos Disponibles</h3>
+                    <div class="section-heading">
+                        <div>
+                            <span class="eyebrow">Menú</span>
+                            <h3>Productos disponibles</h3>
+                        </div>
+                        <span class="help-text">Toca un producto para agregarlo</span>
+                    </div>
                     
-                    <!-- Pestañas de Categorías -->
+                    <!-- Filtros de categoría; script.js los genera dinámicamente. -->
                     <div class="category-tabs" id="category-tabs">
-                        <!-- Las pestañas se cargarán aquí -->
+                        <!-- Las pestañas se cargarán aquí. -->
                     </div>
                     
                     <div id="products-grid" class="products-grid">
-                        <!-- Los productos se cargarán aquí -->
+                        <!-- Los productos se cargan desde localStorage o valores iniciales. -->
                     </div>
                 </div>
 
@@ -67,15 +100,22 @@
                         </button>
                     </div>
                 </div>
+                <div class="pos-today-summary">
+                    <div><span>Ventas de hoy</span><strong id="today-sales-total">$0.00</strong></div>
+                    <div><span>Órdenes</span><strong id="today-sales-count">0</strong></div>
+                    <div><span>Artículos vendidos</span><strong id="today-items-count">0</strong></div>
+                    <button class="btn-small" onclick="showTab('cashbox')">Ir a cierre de caja →</button>
+                </div>
             </div>
         </div>
 
+        <!-- Configuración: tipo de cambio, IVA y mantenimiento de datos. -->
         <div id="settings-tab" class="tab-content">
             <div class="settings-section">
                 <h3>⚙️ Configuración del Sistema</h3>
                 
                 <div class="settings-container">
-                    <!-- Panel de Tipo de Cambio -->
+                    <!-- Panel para guardar el tipo de cambio MXN/USD. -->
                     <div class="settings-panel">
                         <h4>💱 Tipo de Cambio (Dólar)</h4>
                         <form id="exchange-rate-form" onsubmit="updateExchangeRate(event)">
@@ -94,7 +134,7 @@
                         </div>
                     </div>
 
-                    <!-- Panel de Información del Sistema (opcional para futuras opciones) -->
+                    <!-- Panel para definir el porcentaje de IVA de las ventas. -->
                     <div class="settings-panel">
                         <h4>🧾 Configurar IVA</h4>
                         <form id="tax-rate-form" onsubmit="updateTaxRate(event)">
@@ -116,7 +156,7 @@
                         </div>
                     </div>
 
-                    <!-- Panel de Mantenimiento del Sistema -->
+                    <!-- Panel para reiniciar los datos al menú predeterminado. -->
                     <div class="settings-panel">
                         <h4>⚙️ Mantenimiento del Sistema</h4>
                         <p style="color: #2c3e50; margin-bottom: 15px;">Utiliza esta opción si hay problemas o quieres limpiar todos los datos.</p>
@@ -129,6 +169,7 @@
             </div>
         </div>
 
+        <!-- Productos: formulario de alta y lista administrativa del catálogo. -->
         <div id="admin-tab" class="tab-content">
             <div class="admin-section">
                 <div class="admin-panel">
@@ -161,7 +202,7 @@
                                 <button type="button" class="btn-small-cancel" onclick="hideNewCategoryForm()">Cancelar</button>
                             </div>
                         </div>
-                        <!-- Add an image upload field to the product form -->
+                        <!-- Imagen opcional del producto; se comprime desde script.js. -->
                         <div class="form-group">
                             <label for="product-image">Imagen del Producto</label>
                             <input type="file" id="product-image" name="product-image" accept="image/*">
@@ -176,12 +217,13 @@
                         <button class="btn-small btn-danger" onclick="deleteAllProducts()" title="Eliminar todos los productos">🗑️ Borrar Todos</button>
                     </div>
                     <div id="product-list" class="product-list">
-                        <!-- Los productos se cargarán aquí -->
+                        <!-- La lista se genera dinámicamente desde JavaScript. -->
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Categorías: creación, color identificador y lista de categorías. -->
         <div id="categories-tab" class="tab-content">
             <div class="admin-section">
                 <div class="admin-panel">
@@ -217,12 +259,13 @@
                         <button class="btn-small btn-danger" onclick="deleteAllCategories()" title="Eliminar todas las categorías">🗑️ Borrar Todas</button>
                     </div>
                     <div id="category-list" class="category-list">
-                        <!-- Las categorías se cargarán aquí -->
+                        <!-- La lista se genera dinámicamente desde JavaScript. -->
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Ventas: filtros, indicadores y detalle del historial de transacciones. -->
         <div id="sales-tab" class="tab-content">
             <div class="sales-section">
                 <div class="sales-header">
@@ -285,49 +328,65 @@
             </div>
         </div>
 
+        <!-- Caja: registra el fondo inicial y calcula el cierre de la jornada. -->
         <div id="cashbox-tab" class="tab-content">
             <div class="cashbox-section">
-                <h3>Control de Fondo de Caja</h3>
+                <div class="cashbox-title">
+                    <div>
+                        <span class="eyebrow">Inicio de jornada</span>
+                        <h3>Apertura y cierre de caja</h3>
+                        <p>Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.</p>
+                    </div>
+                    <div class="cashbox-status" id="cashbox-status">Sin cierre de hoy</div>
+                </div>
                 
                 <div class="cashbox-container">
-                    <!-- Formulario -->
                     <div class="cashbox-form-panel">
-                        <h4>Registrar Movimiento de Caja</h4>
+                        <h4>1. Iniciar caja</h4>
+                        <form id="opening-cash-form" onsubmit="openCashBox(event)">
+                            <div class="form-group">
+                                <label for="initial-fund">Fondo inicial de caja ($)</label>
+                                <input type="number" id="initial-fund" step="0.01" min="0" required placeholder="5000.00">
+                            </div>
+                            <button type="submit" class="btn">Iniciar jornada</button>
+                        </form>
+                        <div class="opening-fund-display">
+                            Fondo protegido de hoy: <strong id="opening-fund-value">$0.00</strong>
+                        </div>
+
+                        <h4 class="cashbox-step-title" id="cashbox-closing-step">2. Cerrar caja</h4>
                         <form id="cashbox-form" onsubmit="calculateCashBox(event)">
                             <div class="form-group">
-                                <label for="initial-fund">Fondo Inicial del Día ($):</label>
-                                <input type="number" id="initial-fund" step="0.01" min="0" required placeholder="0.00">
+                                <label for="daily-sales">Total de ventas del día ($)</label>
+                                <input type="number" id="daily-sales" step="0.01" min="0" readonly>
+                                <small>Se obtiene automáticamente de las ventas registradas.</small>
                             </div>
-                            <div class="form-group">
-                                <label for="daily-sales">Ventas del Día ($):</label>
-                                <input type="number" id="daily-sales" step="0.01" min="0" required placeholder="0.00">
-                            </div>
-                            <div class="form-group">
-                                <label for="minor-expenses">Gastos Menores ($):</label>
-                                <input type="number" id="minor-expenses" step="0.01" min="0" required placeholder="0.00">
-                            </div>
-                            <button type="submit" class="btn">Calcular</button>
+                            <button type="submit" class="btn">Revisar cierre</button>
                         </form>
                     </div>
 
-                    <!-- Resultados -->
+                    <!-- Resultados: muestra fondo protegido, ventas y efectivo esperado. -->
                     <div class="cashbox-results-panel" id="cashbox-results" style="display: none;">
-                        <h4>Resultados</h4>
+                        <h4>3. Resumen del cierre</h4>
                         <div class="result-item">
-                            <span>Total en Caja:</span>
+                            <span>Fondo protegido:</span>
+                            <span class="result-value" id="retained-cash">$0.00</span>
+                        </div>
+                        <div class="result-item">
+                            <span>Ventas para retirar:</span>
                             <span class="result-value" id="total-cashbox">$0.00</span>
                         </div>
                         <div class="result-item">
-                            <span>Ventas Netas:</span>
+                            <span>Total esperado en caja:</span>
                             <span class="result-value" id="net-sales">$0.00</span>
                         </div>
-                        <button class="btn btn-success" onclick="saveCashBoxRecord()">Guardar Registro</button>
+                        <button class="btn btn-success" onclick="confirmCashBoxRecord()">Guardar cierre de jornada</button>
                     </div>
                 </div>
 
-                <!-- Tabla de Historial -->
+                <!-- Tabla de historial: conserva los cierres anteriores y sus acciones. -->
                 <div class="cashbox-history-panel">
-                    <h4>Historial de Movimientos</h4>
+                    <h4>Historial de cierres</h4>
                     <div class="history-controls">
                         <button class="btn-small" onclick="clearCashBoxHistory()" style="background: #e74c3c;">Limpiar Historial</button>
                         <button class="btn-small" onclick="exportCashBoxHistory()">Exportar CSV</button>
@@ -336,17 +395,18 @@
                         <thead>
                             <tr>
                                 <th>Fecha y Hora</th>
-                                <th>Fondo Inicial</th>
+                                <th>Fondo inicial</th>
                                 <th>Ventas</th>
                                 <th>Gastos</th>
-                                <th>Total en Caja</th>
-                                <th>Ventas Netas</th>
+                                <th>Efectivo contado</th>
+                                <th>Fondo retenido</th>
+                                <th>Retiro</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="cashbox-tbody">
                             <tr>
-                                <td colspan="7" style="text-align: center; padding: 20px; color: #999;">No hay registros</td>
+                                <td colspan="8" style="text-align: center; padding: 20px; color: #999;">No hay cierres registrados</td>
                             </tr>
                         </tbody>
                     </table>
@@ -355,6 +415,49 @@
         </div>
     </div>
 
+    <!-- Modal de venta: revisa artículos, IVA y total antes de registrar. -->
+    <div id="sale-confirmation-modal" class="sale-modal" role="dialog" aria-modal="true" aria-labelledby="sale-modal-title" hidden>
+        <div class="sale-modal-backdrop" onclick="closeSaleModal()"></div>
+        <div class="sale-modal-card">
+            <div class="sale-modal-header">
+                <div>
+                    <span class="eyebrow">Revisar pedido</span>
+                    <h2 id="sale-modal-title">Confirmar venta</h2>
+                </div>
+                <button class="sale-modal-close" type="button" onclick="closeSaleModal()" aria-label="Cerrar">×</button>
+            </div>
+            <div class="sale-modal-items" id="sale-modal-items"></div>
+            <div class="sale-modal-totals">
+                <div><span>Subtotal</span><strong id="sale-modal-subtotal">$0.00</strong></div>
+                <div><span>IVA</span><strong id="sale-modal-tax">$0.00</strong></div>
+                <div class="sale-modal-total"><span>Total a cobrar</span><strong id="sale-modal-total">$0.00</strong></div>
+            </div>
+            <div class="sale-modal-actions">
+                <button class="btn-small-cancel" type="button" onclick="closeSaleModal()">Seguir revisando</button>
+                <button class="btn btn-success sale-confirm-btn" type="button" onclick="confirmSale()">Confirmar y registrar venta</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal general: confirma aperturas, eliminaciones y cambios importantes. -->
+    <div id="action-confirmation-modal" class="sale-modal" role="dialog" aria-modal="true" aria-labelledby="action-modal-title" hidden>
+        <div class="sale-modal-backdrop" onclick="closeActionModal()"></div>
+        <div class="sale-modal-card action-modal-card">
+            <div class="sale-modal-header">
+                <div>
+                    <span class="eyebrow" id="action-modal-eyebrow">Revisar cambio</span>
+                    <h2 id="action-modal-title">Confirmar cambio</h2>
+                </div>
+                <button class="sale-modal-close" type="button" onclick="closeActionModal()" aria-label="Cerrar">×</button>
+            </div>
+            <div class="action-modal-message" id="action-modal-message"></div>
+            <div class="sale-modal-actions">
+                <button class="btn-small-cancel" type="button" onclick="closeActionModal()">Cancelar</button>
+                <button class="btn btn-success sale-confirm-btn" type="button" onclick="confirmActionModal()">Confirmar cambio</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carga la lógica después de construir toda la interfaz. -->
     <script src="js/script.js"></script>
 </body>
 </html>
