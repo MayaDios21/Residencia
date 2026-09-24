@@ -652,6 +652,18 @@ function updateTodaySalesSummary() {
     if (items) items.textContent = summary.items;
 }
 
+function isCashBoxClosedForToday() {
+    return cashBoxRecords.some(record => record.dateKey === getLocalDateKey());
+}
+
+function canSellToday() {
+    if (isCashBoxClosedForToday()) {
+        showNotification('🚫 La jornada ya fue cerrada. No puedes vender más productos.');
+        return false;
+    }
+    return true;
+}
+
 /**
  * Funciones auxiliares para el historial de ventas
  */
@@ -993,6 +1005,16 @@ function loadProducts() {
     console.log(`📦 Intentando cargar productos. Total disponible: ${products.length}`);
     console.log(`🏷️  Categoría activa: ${activeCategory}`);
     console.log(`📋 Lista de productos:`, products);
+
+    if (isCashBoxClosedForToday()) {
+        grid.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 30px 20px; color: #7f8c8d; background: rgba(127, 140, 141, 0.08); border-radius: 12px; border: 1px dashed #7f8c8d;">
+                <strong style="display: block; font-size: 1.1rem; color: #2c3e50; margin-bottom: 8px;">Jornada cerrada</strong>
+                <span>No puedes vender más productos porque la caja ya fue cerrada hoy.</span>
+            </div>
+        `;
+        return;
+    }
 
     // Obtener productos filtrados
     const filteredProducts = getProductsByCategory(activeCategory);
@@ -1562,6 +1584,8 @@ function loadProductList() {
  * @param {Object} product - Producto a agregar
  */
 function addToCart(product) {
+    if (!canSellToday()) return;
+
     const existingItem = cart.find(item => item.id === product.id);
     
     if (existingItem) {
@@ -1698,6 +1722,8 @@ function calculateTotal() {
  * Procesa la venta
  */
 function checkout() {
+    if (!canSellToday()) return;
+
     if (cart.length === 0) {
         alert(' El carrito está vacío');
         return;
