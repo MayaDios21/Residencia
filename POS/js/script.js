@@ -494,6 +494,11 @@ function loadSalesHistory() {
         const saved = localStorage.getItem('pos_salesHistory');
         if (saved) {
             salesHistory = JSON.parse(saved);
+            salesHistory = salesHistory.map(sale => ({
+                ...sale,
+                dateKey: sale.dateKey || getLocalDateKey(new Date(sale.date)),
+                status: sale.status || 'abierta'
+            }));
             console.log(`📊 ${salesHistory.length} ventas cargadas del historial`);
         } else {
             salesHistory = [];
@@ -565,6 +570,9 @@ function loadSalesHistoryTab() {
             <div class="sale-stats">
                 <div class="sale-items">${sale.items || 0} items</div>
                 <div class="sale-total">$${(sale.total || 0).toFixed(2)}</div>
+                <div class="sale-status ${sale.status === 'cerrada' ? 'closed' : 'open'}">
+                    ${sale.status === 'cerrada' ? 'Cerrada' : 'Abierta'}
+                </div>
             </div>
         `;
         
@@ -650,6 +658,34 @@ function updateTodaySalesSummary() {
     if (total) total.textContent = `$${summary.total.toFixed(2)}`;
     if (count) count.textContent = summary.count;
     if (items) items.textContent = summary.items;
+}
+
+function saveSalesHistory() {
+    localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
+}
+
+function closeSalesForDate(dateKey, closedAt = new Date().toISOString()) {
+    let changed = false;
+    salesHistory = salesHistory.map(sale => {
+        const saleDateKey = sale.dateKey || getLocalDateKey(new Date(sale.date));
+        if (saleDateKey !== dateKey || sale.status === 'cerrada') return sale;
+        changed = true;
+        return { ...sale, dateKey: saleDateKey, status: 'cerrada', closedAt };
+    });
+    if (changed) saveSalesHistory();
+    return changed;
+}
+
+function syncSalesWithCashBoxClosures() {
+    const closedDates = new Set(cashBoxRecords.map(record => record.dateKey));
+    let changed = false;
+    salesHistory = salesHistory.map(sale => {
+        const saleDateKey = sale.dateKey || getLocalDateKey(new Date(sale.date));
+        if (!closedDates.has(saleDateKey) || sale.status === 'cerrada') return sale;
+        changed = true;
+        return { ...sale, dateKey: saleDateKey, status: 'cerrada' };
+    });
+    if (changed) saveSalesHistory();
 }
 
 function isCashBoxClosedForToday() {
@@ -855,6 +891,8 @@ function showTab(tabName) {
         loadCategorySelector();
     } else if (tabName === 'categories') {
         loadCategoryList();
+    } else if (tabName === 'warehouse') {
+        loadWarehouse();
     } else if (tabName === 'sales') {
         loadSalesHistoryTab();
     } else if (tabName === 'cashbox') {
@@ -1728,6 +1766,15 @@ function checkout() {
         alert(' El carrito está vacío');
         return;
     }
+
+    const unavailableProduct = cart.find(item => {
+        const stock = getProductStock(item);
+        return stock !== null && item.quantity > stock;
+    });
+    if (unavailableProduct) {
+        showNotification(`⚠️ No hay existencias suficientes de ${unavailableProduct.name}.`);
+        return;
+    }
     
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const tax = subtotal * TAX_RATE;
@@ -1800,15 +1847,51 @@ function confirmActionModal() {
     if (callback) callback();
 }
 
-function confirmSale() {
+async function confirmSale() {
     if (!pendingSale) return;
     const sale = pendingSale;
-    recordSale(sale.items, sale.subtotal, sale.tax, sale.total);
-    cart = [];
-    updateCart();
-    closeSaleModal();
-    showNotification(`✓ Venta registrada por $${sale.total.toFixed(2)} MXN`);
-    showTab('pos');
+    const confirmButton = document.querySelector('.sale-confirm-btn');
+    if (confirmButton) confirmButton.disabled = true;
+
+    try {
+        let apiSale = null;
+        if (USE_API) {
+            apiSale = await createSaleInApi({
+                items: sale.items.map(item => ({
+                    product_id: item.id,
+                    quantity: item.quantity
+                })),
+                payment: 'Efectivo'
+            });
+        }
+
+        recordSale(sale.items, sale.subtotal, sale.tax, sale.total);
+
+        if (apiSale?.items) {
+            apiSale.items.forEach(item => {
+                const product = products.find(productItem => productItem.id === item.product_id);
+                if (product && Number.isFinite(item.stock_remaining)) {
+                    product.stock = item.stock_remaining;
+                }
+            });
+            saveProducts();
+        }
+
+        cart = [];
+        updateCart();
+        closeSaleModal();
+        showNotification(`✓ Venta registrada por $${sale.total.toFixed(2)} MXN`);
+        showTab('pos');
+    } catch (error) {
+        if (error.status === 409) {
+            showNotification('⚠️ No hay existencias suficientes para completar la venta.');
+        } else {
+            showNotification('⚠️ No se pudo registrar la venta. Intenta nuevamente.');
+        }
+        console.error('Error al registrar venta en el servidor:', error);
+    } finally {
+        if (confirmButton) confirmButton.disabled = false;
+    }
 }
 
 // ============================================
@@ -1849,6 +1932,8 @@ function recordSale(items, subtotal, tax, total) {
         const sale = {
             id: Date.now(),
             date: new Date().toISOString(),
+            dateKey: getLocalDateKey(),
+            status: 'abierta',
             items: items.reduce((sum, item) => sum + item.quantity, 0),
             subtotal: subtotal,
             tax: tax,
@@ -1862,7 +1947,13 @@ function recordSale(items, subtotal, tax, total) {
         };
         
         salesHistory.push(sale);
-        localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
+        items.forEach(item => {
+            const product = products.find(productItem => productItem.id === item.id);
+            const stock = product ? getProductStock(product) : null;
+            if (product && stock !== null) product.stock = stock - item.quantity;
+        });
+        saveProducts();
+        saveSalesHistory();
         updateTodaySalesSummary();
         console.log('✅ Venta registrada en historial:', sale);
     } catch (error) {
@@ -2138,6 +2229,8 @@ function loadCashBoxRecords() {
         cashBoxRecords = [];
     }
 
+    syncSalesWithCashBoxClosures();
+
 }
 
 function openCashBox(event) {
@@ -2262,6 +2355,9 @@ function saveCashBoxRecord() {
     
     // Agregar al inicio del array (más reciente primero)
     cashBoxRecords.unshift(record);
+
+    // El cierre de caja también cierra todas las ventas de esta jornada.
+    closeSalesForDate(today, record.date);
     
     // Guardar en localStorage
     saveCashBoxRecords();
@@ -2288,6 +2384,7 @@ function saveCashBoxRecord() {
     };
 
     loadCashBoxTab();
+    loadSalesHistoryTab();
     alert(' Registro guardado exitosamente!');
     console.log(' Nuevo registro de caja guardado:', record);
 }
@@ -2693,4 +2790,89 @@ window.diagnosticar = function() {
     console.log('  - loadCategoryTabs() → Recargar pestañas');
     console.log('  - resetSystem() → Limpiar datos y reiniciar');
     console.log('='.repeat(50));
+}
+
+function getProductStock(product) {
+    return Number.isFinite(Number(product.stock)) ? Number(product.stock) : null;
+}
+
+function getProductMinimumStock(product) {
+    return Number.isFinite(Number(product.minimum_stock)) ? Number(product.minimum_stock) : 5;
+}
+
+function loadWarehouse() {
+    const list = document.getElementById('warehouse-list');
+    const selector = document.getElementById('movement-product');
+    if (!list || !selector) return;
+
+    const search = (document.getElementById('warehouse-search')?.value || '').trim().toLowerCase();
+    const onlyLowStock = document.getElementById('warehouse-low-stock')?.checked;
+    const visibleProducts = products.filter(product => {
+        const stock = getProductStock(product);
+        const matchesSearch = product.name.toLowerCase().includes(search);
+        const isLowStock = stock !== null && stock <= getProductMinimumStock(product);
+        return matchesSearch && (!onlyLowStock || isLowStock);
+    });
+
+    document.getElementById('warehouse-product-count').textContent = `${visibleProducts.length} productos`;
+    list.innerHTML = visibleProducts.length === 0
+        ? '<tr><td colspan="5" class="warehouse-empty">No hay productos que coincidan.</td></tr>'
+        : visibleProducts.map(product => {
+            const stock = getProductStock(product);
+            const minimum = getProductMinimumStock(product);
+            const status = stock === null ? 'Sin registrar' : stock <= minimum ? 'Stock bajo' : 'Disponible';
+            const statusClass = stock === null ? 'unknown' : stock <= minimum ? 'low' : 'available';
+            return `
+                <tr>
+                    <td>${escapeHtml(product.name)}</td>
+                    <td>${escapeHtml(product.category || 'Sin categoría')}</td>
+                    <td>${stock === null ? '—' : stock}</td>
+                    <td>${minimum}</td>
+                    <td><span class="warehouse-status ${statusClass}">${status}</span></td>
+                </tr>
+            `;
+        }).join('');
+
+    selector.innerHTML = products.length === 0
+        ? '<option value="">No hay productos</option>'
+        : products.map(product => `<option value="${product.id}">${escapeHtml(product.name)}</option>`).join('');
+}
+
+async function registerInventoryMovement(event) {
+    event.preventDefault();
+    const productId = Number(document.getElementById('movement-product').value);
+    const type = document.getElementById('movement-type').value;
+    const quantity = Number(document.getElementById('movement-quantity').value);
+    const reason = document.getElementById('movement-reason').value.trim();
+    const product = products.find(item => item.id === productId);
+
+    if (!product || !Number.isInteger(quantity) || quantity <= 0) {
+        showNotification('⚠️ Selecciona un producto y una cantidad válida.');
+        return;
+    }
+
+    const movement = { product_id: productId, type, quantity, reason };
+    try {
+        if (USE_API) {
+            const response = await createInventoryMovementInApi(movement);
+            if (Number.isFinite(response?.stock_remaining)) product.stock = response.stock_remaining;
+        } else {
+            const currentStock = getProductStock(product) || 0;
+            const change = type === 'entrada' ? quantity : -quantity;
+            if (currentStock + change < 0) {
+                showNotification('⚠️ El movimiento no puede dejar el stock en negativo.');
+                return;
+            }
+            product.stock = currentStock + change;
+            product.minimum_stock = getProductMinimumStock(product);
+            saveProducts();
+        }
+
+        document.getElementById('inventory-movement-form').reset();
+        loadWarehouse();
+        showNotification('✓ Movimiento de inventario registrado.');
+    } catch (error) {
+        showNotification('⚠️ No se pudo registrar el movimiento.');
+        console.error('Error al registrar movimiento:', error);
+    }
 }

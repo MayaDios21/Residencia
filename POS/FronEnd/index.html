@@ -45,6 +45,7 @@
             <button class="tab" onclick="showTab('cashbox')">💵 Cierre de caja</button>
             <button class="tab" onclick="showTab('sales')">📊 Ventas</button>
             <button class="tab" onclick="showTab('admin')">🍽️ Productos</button>
+            <button class="tab" onclick="showTab('warehouse')">📦 Almacén</button>
             <button class="tab" onclick="showTab('categories')">🏷️ Categorías</button>
             <button class="tab" onclick="showTab('settings')">⚙️ Configuración</button>
         </div>
@@ -218,6 +219,81 @@
                     </div>
                     <div id="product-list" class="product-list">
                         <!-- La lista se genera dinámicamente desde JavaScript. -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Almacén: consulta existencias y registra entradas o ajustes. -->
+        <div id="warehouse-tab" class="tab-content">
+            <div class="warehouse-section">
+                <div class="sales-header">
+                    <div>
+                        <span class="eyebrow">Inventario</span>
+                        <h3>Almacén</h3>
+                    </div>
+                    <div class="sales-filters">
+                        <div class="filter-group">
+                            <label for="warehouse-search">Buscar:</label>
+                            <input type="search" id="warehouse-search" placeholder="Producto..." oninput="loadWarehouse()">
+                        </div>
+                        <label class="warehouse-check">
+                            <input type="checkbox" id="warehouse-low-stock" onchange="loadWarehouse()">
+                            Solo stock bajo
+                        </label>
+                    </div>
+                </div>
+
+                <div class="warehouse-layout">
+                    <div class="warehouse-panel warehouse-table-panel">
+                        <div class="warehouse-panel-heading">
+                            <h4>Existencias actuales</h4>
+                            <span id="warehouse-product-count">0 productos</span>
+                        </div>
+                        <div class="warehouse-table-wrapper">
+                            <table class="warehouse-table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Categoría</th>
+                                        <th>Existencia</th>
+                                        <th>Mínimo</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="warehouse-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="warehouse-panel warehouse-form-panel">
+                        <span class="eyebrow">Operación de inventario</span>
+                        <h4>Actualizar existencias</h4>
+                        <p class="warehouse-form-intro">Registra entradas, salidas o correcciones para mantener el stock al día.</p>
+                        <form id="inventory-movement-form" onsubmit="registerInventoryMovement(event)">
+                            <div class="form-group">
+                                <label for="movement-product">Producto</label>
+                                <select id="movement-product" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="movement-type">Tipo de movimiento</label>
+                                <select id="movement-type" required>
+                                    <option value="entrada">Entrada de mercancía</option>
+                                    <option value="ajuste">Ajuste de inventario</option>
+                                    <option value="salida">Salida o pérdida</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="movement-quantity">Cantidad</label>
+                                <input type="number" id="movement-quantity" min="1" step="1" required placeholder="0">
+                                <small class="warehouse-field-help">Usa números enteros positivos.</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="movement-reason">Motivo</label>
+                                <input type="text" id="movement-reason" maxlength="120" placeholder="Ej: Compra de mercancía">
+                            </div>
+                            <button type="submit" class="btn warehouse-submit">＋ Guardar movimiento</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -457,6 +533,7 @@
         </div>
     </div>
 
+    <script src="../js/api.js"></script>
     <!-- Carga la lógica después de construir toda la interfaz. -->
     <script src="../js/script.js"></script>
 </body>
