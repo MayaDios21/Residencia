@@ -24,10 +24,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Punto de Venta - Sistema POS</title>
     <!-- Hoja de estilos: colores, layout, modales y diseño responsive. -->
-    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
+    <!-- Acceso inicial: el perfil y las credenciales solo se mantienen en memoria en esta etapa. -->
+    <main class="entry-screen" id="entry-screen">
+        <section class="entry-panel" aria-labelledby="entry-title">
+            <div class="entry-brand">
+                <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="" class="entry-logo">
+                <span class="eyebrow">Tacos de Birria</span>
+                <h1 id="entry-title">El Compita</h1>
+                <p>Punto de Venta</p>
+            </div>
+            <div class="entry-form-wrap">
+                <span class="eyebrow">Acceso al sistema</span>
+                <h2 id="login-heading">Inicio de sesión · Cajero</h2>
+                <form id="entry-login-form" autocomplete="off" onsubmit="return false">
+                    <div class="login-role-selector" role="group" aria-label="Tipo de cuenta">
+                        <button class="login-role-button active" id="login-role-cashier" type="button" aria-pressed="true" onclick="selectLoginRole('cashier')">Cajero</button>
+                        <button class="login-role-button" id="login-role-admin" type="button" aria-pressed="false" onclick="selectLoginRole('admin')">Administrador</button>
+                    </div>
+                    <label for="login-username">Usuario</label>
+                    <input id="login-username" name="access-identifier" autocomplete="off" required>
+                    <label for="login-password">Contraseña</label>
+                    <input id="login-password" name="access-secret" type="password" autocomplete="new-password" required>
+                    <p class="entry-connection-note">Modo local de demostración. La verificación de credenciales se conectará más adelante.</p>
+                    <button class="btn entry-submit" id="entry-submit" type="button" onclick="startApp()">Entrar a caja</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <div class="container" id="app-container" hidden>
         <!-- Encabezado: muestra logo, nombre del negocio y fecha actual. -->
         <div class="header">
             <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="Tacos El Compita" class="logo">
@@ -37,10 +65,15 @@
                 <span>Jornada del día</span>
                 <strong id="current-business-date">Cargando fecha...</strong>
             </div>
+            <div class="session-access-bar">
+                <span id="session-name"></span>
+                <button class="admin-access-button" id="session-logout" type="button" onclick="logoutSession()">Cerrar sesión</button>
+            </div>
         </div>
 
         <!-- Navegación: cada botón activa una pantalla mediante showTab(). -->
         <div class="tabs" role="navigation" aria-label="Navegación principal">
+            <button class="tab admin-only" id="admin-dashboard-button" onclick="showTab('admin-dashboard')" hidden>📈 Panel</button>
             <button class="tab active" onclick="showTab('pos')">🛒 Venta</button>
             <button class="tab" onclick="showTab('cashbox')">💵 Cierre de caja</button>
             <button class="tab" onclick="showTab('sales')">📊 Ventas</button>
@@ -48,6 +81,44 @@
             <button class="tab" onclick="showTab('warehouse')">📦 Almacén</button>
             <button class="tab" onclick="showTab('categories')">🏷️ Categorías</button>
             <button class="tab" onclick="showTab('settings')">⚙️ Configuración</button>
+        </div>
+
+        <!-- Panel administrativo: sus indicadores se calculan con el historial local actual. -->
+        <div id="admin-dashboard-tab" class="tab-content admin-only">
+            <div class="dashboard-heading">
+                <div>
+                    <span class="eyebrow">Administración</span>
+                    <h2>Resumen del negocio</h2>
+                </div>
+                <label class="dashboard-period-label" for="dashboard-period">Periodo
+                    <select id="dashboard-period" onchange="renderAdminDashboard()">
+                        <option value="today">Hoy</option>
+                        <option value="7">Últimos 7 días</option>
+                        <option value="30">Últimos 30 días</option>
+                        <option value="all">Todo el historial</option>
+                    </select>
+                </label>
+            </div>
+            <div class="dashboard-metrics" aria-live="polite">
+                <article class="dashboard-metric"><span>Ventas netas</span><strong id="admin-metric-sales">$0.00</strong><small id="admin-metric-sales-caption">Periodo seleccionado</small></article>
+                <article class="dashboard-metric"><span>Transacciones</span><strong id="admin-metric-count">0</strong><small>Ventas registradas</small></article>
+                <article class="dashboard-metric"><span>Promedio por venta</span><strong id="admin-metric-average">$0.00</strong><small>Ticket promedio</small></article>
+                <article class="dashboard-metric"><span>Artículos vendidos</span><strong id="admin-metric-items">0</strong><small>Unidades en el periodo</small></article>
+            </div>
+            <div class="dashboard-columns">
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel-heading"><h3>Ventas por día</h3><span id="admin-chart-caption">Periodo seleccionado</span></div>
+                    <div class="dashboard-chart" id="admin-sales-chart" aria-label="Gráfica de ventas por día"></div>
+                </section>
+                <section class="dashboard-panel">
+                    <div class="dashboard-panel-heading"><h3>Inventario por revisar</h3><span id="admin-stock-count">0 productos</span></div>
+                    <div class="dashboard-stock-list" id="admin-stock-alerts"></div>
+                </section>
+            </div>
+            <section class="dashboard-panel dashboard-recent-panel">
+                <div class="dashboard-panel-heading"><h3>Ventas recientes</h3><button class="btn-small" type="button" onclick="showTab('sales')">Ver historial</button></div>
+                <div class="dashboard-recent-sales" id="admin-recent-sales"></div>
+            </section>
         </div>
 
         <!-- Venta: catálogo de productos, carrito y resumen de la jornada. -->
@@ -533,8 +604,8 @@
         </div>
     </div>
 
-    <script src="../js/api.js"></script>
+    <script src="js/api.js"></script>
     <!-- Carga la lógica después de construir toda la interfaz. -->
-    <script src="../js/script.js"></script>
+    <script src="js/script.js"></script>
 </body>
 </html>

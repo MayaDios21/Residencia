@@ -479,6 +479,9 @@ let exchangeRate = 19.50; // Tipo de cambio por defecto
 
 // Historial de ventas
 let salesHistory = [];
+// El rol solo se conserva mientras la app está abierta; aún no existe validación de credenciales.
+let adminSession = null;
+let selectedLoginRole = 'cashier';
 
 // ============================================
 // FUNCIONES DE CARGA DE CONFIGURACIÓN
@@ -658,6 +661,169 @@ function updateTodaySalesSummary() {
     if (total) total.textContent = `$${summary.total.toFixed(2)}`;
     if (count) count.textContent = summary.count;
     if (items) items.textContent = summary.items;
+    if (adminSession?.role === 'admin' && document.getElementById('admin-dashboard-tab')?.classList.contains('active')) {
+        renderAdminDashboard();
+    }
+}
+
+/**
+ * Actualiza el perfil seleccionado y los textos del formulario de acceso.
+ * @param {'cashier'|'admin'} role - Perfil local que se abrirá al continuar.
+ */
+function selectLoginRole(role) {
+    selectedLoginRole = role === 'admin' ? 'admin' : 'cashier';
+    const isAdmin = selectedLoginRole === 'admin';
+    const cashierButton = document.getElementById('login-role-cashier');
+    const adminButton = document.getElementById('login-role-admin');
+    const heading = document.getElementById('login-heading');
+    const submit = document.getElementById('entry-submit');
+
+    cashierButton.classList.toggle('active', !isAdmin);
+    cashierButton.setAttribute('aria-pressed', String(!isAdmin));
+    adminButton.classList.toggle('active', isAdmin);
+    adminButton.setAttribute('aria-pressed', String(isAdmin));
+    heading.textContent = `Inicio de sesión · ${isAdmin ? 'Administrador' : 'Cajero'}`;
+    submit.textContent = isAdmin ? 'Entrar al panel' : 'Entrar a caja';
+}
+
+/** Muestra las pestañas disponibles para el perfil local elegido. */
+function updateRoleNavigation() {
+    const isAdmin = adminSession?.role === 'admin';
+    const adminTabNames = ['admin', 'warehouse', 'categories', 'settings'];
+    document.getElementById('admin-dashboard-button').hidden = !isAdmin;
+    adminTabNames.forEach(tabName => {
+        const button = document.querySelector(`[onclick="showTab('${tabName}')"]`);
+        if (button) button.hidden = !isAdmin;
+    });
+    document.getElementById('session-name').textContent = `${isAdmin ? 'Administrador' : 'Cajero'} · ${adminSession.displayName}`;
+}
+
+/**
+ * Entra al POS después de validar que los campos requeridos no estén vacíos.
+ * Las credenciales todavía no se envían ni se comprueban contra un servidor.
+ */
+function startApp() {
+    const form = document.getElementById('entry-login-form');
+    if (!form.reportValidity()) return;
+    const formData = new FormData(form);
+    adminSession = {
+        role: selectedLoginRole,
+        displayName: String(formData.get('access-identifier')).trim()
+    };
+    document.getElementById('entry-screen').hidden = true;
+    document.getElementById('app-container').hidden = false;
+    updateRoleNavigation();
+
+    if (adminSession.role === 'admin') {
+        renderAdminDashboard();
+        showTab('admin-dashboard');
+    } else {
+        showTab('pos');
+        openDailyStartIfNeeded();
+    }
+}
+
+/** Cierra el perfil en memoria y devuelve a la pantalla inicial. */
+function logoutSession() {
+    adminSession = null;
+    document.getElementById('app-container').hidden = true;
+    document.getElementById('entry-screen').hidden = false;
+    document.getElementById('entry-login-form').reset();
+    document.getElementById('login-username').focus();
+    selectLoginRole('cashier');
+}
+
+/** Devuelve las ventas locales incluidas en el periodo seleccionado. */
+function getAdminDashboardSales(period) {
+    const now = new Date();
+    const today = getLocalDateKey(now);
+    if (period === 'today') {
+        return salesHistory.filter(sale => getLocalDateKey(new Date(sale.date)) === today);
+    }
+    if (period === 'all') return salesHistory;
+
+    const days = Number(period);
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - days + 1);
+    return salesHistory.filter(sale => new Date(sale.date) >= start && new Date(sale.date) <= now);
+}
+
+/** Calcula y dibuja las métricas con los datos guardados en este navegador. */
+function renderAdminDashboard() {
+    if (adminSession?.role !== 'admin') return;
+    const period = document.getElementById('dashboard-period')?.value || 'today';
+    const sales = getAdminDashboardSales(period);
+    const total = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
+    const transactions = sales.length;
+    const items = sales.reduce((sum, sale) => sum + (Number(sale.items) || 0), 0);
+    const average = transactions ? total / transactions : 0;
+    const currency = amount => `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    document.getElementById('admin-metric-sales').textContent = currency(total);
+    document.getElementById('admin-metric-count').textContent = transactions.toLocaleString('es-MX');
+    document.getElementById('admin-metric-average').textContent = currency(average);
+    document.getElementById('admin-metric-items').textContent = items.toLocaleString('es-MX');
+
+    const chart = document.getElementById('admin-sales-chart');
+    const chartCaption = document.getElementById('admin-chart-caption');
+    const salesCaption = document.getElementById('admin-metric-sales-caption');
+    let days;
+    if (period === 'today') {
+        days = [new Date()];
+    } else if (period === 'all') {
+        const dates = [...new Set(sales.map(sale => getLocalDateKey(new Date(sale.date))))].sort();
+        days = dates.slice(-14).map(dateKey => new Date(`${dateKey}T12:00:00`));
+    } else {
+        const periodDays = Number(period);
+        days = Array.from({ length: periodDays }, (_, index) => {
+            const date = new Date();
+            date.setDate(date.getDate() - periodDays + index + 1);
+            return date;
+        });
+    }
+    const totalsByDay = new Map();
+    sales.forEach(sale => {
+        const dateKey = getLocalDateKey(new Date(sale.date));
+        totalsByDay.set(dateKey, (totalsByDay.get(dateKey) || 0) + (Number(sale.total) || 0));
+    });
+    const chartData = days.map(date => ({
+        date,
+        total: totalsByDay.get(getLocalDateKey(date)) || 0
+    }));
+    const maxDailySales = Math.max(...chartData.map(day => day.total), 1);
+    if (chart) {
+        chart.innerHTML = chartData.length ? chartData.map(day => {
+            const label = day.date.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
+            const height = day.total ? Math.max((day.total / maxDailySales) * 100, 5) : 2;
+            return `<div class="dashboard-chart-column" title="${label}: ${currency(day.total)}"><span>${currency(day.total)}</span><div class="dashboard-chart-track"><i style="height:${height}%"></i></div><small>${label}</small></div>`;
+        }).join('') : '<p class="dashboard-empty">Todavía no hay ventas para mostrar.</p>';
+    }
+    const rangeText = period === 'today' ? 'Hoy' : period === 'all' ? 'Todo el historial' : `Últimos ${period} días`;
+    if (chartCaption) chartCaption.textContent = rangeText;
+    if (salesCaption) salesCaption.textContent = rangeText;
+
+    const stockAlerts = products.filter(product => {
+        const stock = getProductStock(product);
+        return stock !== null && stock <= getProductMinimumStock(product);
+    });
+    const stockCount = document.getElementById('admin-stock-count');
+    const stockList = document.getElementById('admin-stock-alerts');
+    if (stockCount) stockCount.textContent = `${stockAlerts.length} ${stockAlerts.length === 1 ? 'producto' : 'productos'}`;
+    if (stockList) {
+        stockList.innerHTML = stockAlerts.length ? stockAlerts.slice(0, 6).map(product => `
+            <div class="dashboard-stock-item"><span>${escapeHtml(product.name)}</span><strong>${getProductStock(product)} / ${getProductMinimumStock(product)}</strong></div>
+        `).join('') : '<p class="dashboard-empty">No hay productos con stock bajo.</p>';
+    }
+
+    const recent = [...salesHistory].sort((left, right) => new Date(right.date) - new Date(left.date)).slice(0, 5);
+    const recentList = document.getElementById('admin-recent-sales');
+    if (recentList) {
+        recentList.innerHTML = recent.length ? recent.map(sale => {
+            const date = new Date(sale.date);
+            return `<div class="dashboard-recent-row"><span>#${escapeHtml(String(sale.id))}</span><time>${date.toLocaleDateString('es-MX')} ${date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</time><span>${Number(sale.items) || 0} artículos</span><strong>${currency(Number(sale.total) || 0)}</strong></div>`;
+        }).join('') : '<p class="dashboard-empty">Todavía no hay ventas registradas.</p>';
+    }
 }
 
 function saveSalesHistory() {
@@ -862,15 +1028,21 @@ function updateTaxRate(event) {
 // ============================================
 // GESTIÓN DE PESTAÑAS
 // ============================================
-// Este módulo decide qué vista se muestra. También impide continuar hacia
-// otras pantallas si todavía no se registró el fondo inicial de la jornada.
+// Este módulo decide qué vista se muestra, limita secciones por perfil y exige
+// registrar el fondo inicial de la jornada antes de continuar con el POS.
 
 /**
  * Cambia entre las pestañas del sistema
  * @param {string} tabName - Nombre de la pestaña a mostrar
  */
 function showTab(tabName) {
-    if (tabName !== 'cashbox' && shouldOpenCashBoxForToday()) {
+    const adminTabs = ['admin-dashboard', 'admin', 'warehouse', 'categories', 'settings'];
+    if (adminTabs.includes(tabName) && adminSession?.role !== 'admin') {
+        showNotification('Esta sección requiere acceso de administrador.');
+        return;
+    }
+
+    if (tabName !== 'cashbox' && tabName !== 'admin-dashboard' && shouldOpenCashBoxForToday()) {
         showNotification('🔒 Registra primero el fondo inicial para continuar.');
         showTab('cashbox');
         focusOpeningCashField();
@@ -900,6 +1072,8 @@ function showTab(tabName) {
     } else if (tabName === 'settings') {
         displayExchangeRate();
         displayTaxRate();
+    } else if (tabName === 'admin-dashboard') {
+        renderAdminDashboard();
     }
 }
 
@@ -2072,7 +2246,6 @@ function initializeSystem() {
                 updateBusinessDate();
                 displayExchangeRate();
                 displayTaxRate();
-                openDailyStartIfNeeded();
                 
                 console.log('✅ Sistema POS inicializado correctamente');
                 console.log(` ${categories.length} categorías disponibles`);
