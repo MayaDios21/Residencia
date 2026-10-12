@@ -1,11 +1,14 @@
-const API_URL = 'http://127.0.0.1:8000/api';
+const API_URL = window.POS_API_URL || 'http://127.0.0.1:8000/api';
 const USE_API = false;
+const AUTH_TOKEN_KEY = 'pos_auth_token';
 
 async function apiRequest(path, options = {}) {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
     const response = await fetch(`${API_URL}${path}`, {
         ...options,
         headers: {
             'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Token ${token}` } : {}),
             ...(options.headers || {})
         }
     });
@@ -25,6 +28,23 @@ async function apiRequest(path, options = {}) {
     }
 
     return data;
+}
+
+async function loginInApi(credentials) {
+    const data = await apiRequest('/auth/login/', {
+        method: 'POST',
+        body: JSON.stringify(credentials)
+    });
+    localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+    return data.user;
+}
+
+async function logoutFromApi() {
+    try {
+        await apiRequest('/auth/logout/', { method: 'POST' });
+    } finally {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
 }
 
 async function getProductsFromApi() {

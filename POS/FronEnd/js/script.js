@@ -479,7 +479,7 @@ let exchangeRate = 19.50; // Tipo de cambio por defecto
 
 // Historial de ventas
 let salesHistory = [];
-// El rol solo se conserva mientras la app está abierta; aún no existe validación de credenciales.
+// El rol solo se conserva mientras la app está abierta.
 let adminSession = null;
 let selectedLoginRole = 'cashier';
 
@@ -699,17 +699,35 @@ function updateRoleNavigation() {
 }
 
 /**
- * Entra al POS después de validar que los campos requeridos no estén vacíos.
- * Las credenciales todavía no se envían ni se comprueban contra un servidor.
+ * Entra al POS después de validar las credenciales mediante la API.
  */
-function startApp() {
+async function startApp() {
     const form = document.getElementById('entry-login-form');
     if (!form.reportValidity()) return;
     const formData = new FormData(form);
-    adminSession = {
-        role: selectedLoginRole,
-        displayName: String(formData.get('access-identifier')).trim()
-    };
+    const username = String(formData.get('access-identifier')).trim();
+    const password = String(formData.get('access-secret'));
+    const submit = document.getElementById('entry-submit');
+    submit.disabled = true;
+
+    try {
+        const user = await loginInApi({
+            username,
+            password,
+            role: selectedLoginRole
+        });
+        adminSession = {
+            role: user.role,
+            displayName: user.username
+        };
+    } catch (error) {
+        showNotification(`❌ ${error.message}`);
+        document.getElementById('login-password').focus();
+        return;
+    } finally {
+        submit.disabled = false;
+    }
+
     document.getElementById('entry-screen').hidden = true;
     document.getElementById('app-container').hidden = false;
     updateRoleNavigation();
@@ -723,8 +741,14 @@ function startApp() {
     }
 }
 
-/** Cierra el perfil en memoria y devuelve a la pantalla inicial. */
-function logoutSession() {
+/** Cierra la sesión de API y devuelve a la pantalla inicial. */
+async function logoutSession() {
+    try {
+        await logoutFromApi();
+    } catch (error) {
+        showNotification(`❌ ${error.message}`);
+        return;
+    }
     adminSession = null;
     document.getElementById('app-container').hidden = true;
     document.getElementById('entry-screen').hidden = false;

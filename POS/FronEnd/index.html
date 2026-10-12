@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- Acceso inicial: el perfil y las credenciales solo se mantienen en memoria en esta etapa. -->
+    <!-- Acceso inicial: el perfil y las credenciales se mantienen en memoria en esta etapa. -->
     <main class="entry-screen" id="entry-screen">
         <section class="entry-panel" aria-labelledby="entry-title">
             <div class="entry-brand">
@@ -48,7 +48,7 @@
                     <input id="login-username" name="access-identifier" autocomplete="off" required>
                     <label for="login-password">Contraseña</label>
                     <input id="login-password" name="access-secret" type="password" autocomplete="new-password" required>
-                    <p class="entry-connection-note">Modo local de demostración. La verificación de credenciales se conectará más adelante.</p>
+                    <p class="entry-connection-note">Acceso seguro mediante el servidor local de Django.</p>
                     <button class="btn entry-submit" id="entry-submit" type="button" onclick="startApp()">Entrar a caja</button>
                 </form>
             </div>
