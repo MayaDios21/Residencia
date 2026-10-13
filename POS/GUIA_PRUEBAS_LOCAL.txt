@@ -1,0 +1,217 @@
+GUIA DE PRUEBAS LOCALES
+PUNTO DE VENTA - TACOS DE BIRRIA EL COMPITA
+
+Esta guia explica como levantar el proyecto localmente para hacer pruebas.
+Se necesitan dos terminales abiertas al mismo tiempo:
+
+  1. Una para el backend de Django.
+  2. Otra para el servidor del frontend.
+
+
+1. UBICACION DEL PROYECTO
+
+Abrir PowerShell y entrar a:
+
+  cd C:\Users\dmaya\Residencia\POS
+
+
+2. PREPARAR EL ENTORNO (SOLO LA PRIMERA VEZ)
+
+Si existe el entorno virtual del proyecto, activarlo:
+
+  .\.venv\Scripts\Activate.ps1
+
+Si PowerShell bloquea la activacion, usar este comando solo para la terminal actual:
+
+  Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+  .\.venv\Scripts\Activate.ps1
+
+Si no existe .venv, crear el entorno:
+
+  py -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+
+Instalar las dependencias del backend:
+
+  cd C:\Users\dmaya\Residencia\POS\BakcEnd
+  python -m pip install -r requirements.txt
+
+
+3. PREPARAR LA BASE DE DATOS LOCAL
+
+La version local utiliza SQLite. La base de datos se crea en:
+
+  BakcEnd\db.sqlite3
+
+Aplicar las migraciones:
+
+  python manage.py migrate
+
+La base db.sqlite3 es local y esta excluida de Git. Cada integrante debe
+crear sus propios usuarios en su computadora.
+
+
+4. CREAR O RESTABLECER USUARIOS DE PRUEBA
+
+Ejecutar desde:
+
+  C:\Users\dmaya\Residencia\POS\BakcEnd
+
+Administrador:
+
+  python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='admin'); u.set_password('AdminTemporal2026!'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'admin'})"
+
+Cajero:
+
+  python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='cajero'); u.set_password('CajeroTemporal2026!'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'cashier'})"
+
+Credenciales temporales:
+
+  Administrador
+  Usuario: admin
+  Contraseña: AdminTemporal2026!
+
+  Cajero
+  Usuario: cajero
+  Contraseña: CajeroTemporal2026!
+
+Estas contraseñas son únicamente para desarrollo local y deben cambiarse
+antes de utilizar el sistema en producción.
+
+
+5. INICIAR EL BACKEND - TERMINAL 1
+
+Desde:
+
+  C:\Users\dmaya\Residencia\POS\BakcEnd
+
+Ejecutar:
+
+  $env:DJANGO_SECRET_KEY="local-development-key"
+  $env:DJANGO_DEBUG="True"
+  python manage.py runserver 127.0.0.1:8000
+
+La terminal debe mostrar:
+
+  Starting development server at http://127.0.0.1:8000/
+
+No cerrar esta terminal ni presionar Ctrl+C mientras se hagan pruebas.
+
+
+6. INICIAR EL FRONTEND - TERMINAL 2
+
+Abrir otra terminal de PowerShell y ejecutar:
+
+  cd C:\Users\dmaya\Residencia\POS
+  .\.venv\Scripts\Activate.ps1
+  python -m http.server 8080 --directory C:\Users\dmaya\Residencia\POS
+
+La terminal debe mostrar:
+
+  Serving HTTP on :: port 8080
+
+No ejecutar el servidor desde la carpeta FronEnd. Debe iniciarse desde la
+raiz POS para que tambien se sirvan las imagenes de la carpeta Public.
+
+
+7. ABRIR EL SISTEMA
+
+Abrir Microsoft Edge en:
+
+  http://127.0.0.1:8080/FronEnd/index.html
+
+No abrir el archivo directamente con una ruta file:///.
+
+Para probar como administrador:
+
+  Seleccionar: Administrador
+  Usuario: admin
+  Contraseña: AdminTemporal2026!
+
+Para probar como cajero:
+
+  Seleccionar: Cajero
+  Usuario: cajero
+  Contraseña: CajeroTemporal2026!
+
+
+8. PRUEBAS RECOMENDADAS
+
+Administrador:
+
+  - Iniciar sesion.
+  - Revisar el panel.
+  - Revisar productos, categorias, almacen y configuracion.
+  - Cerrar sesion.
+
+Cajero:
+
+  - Iniciar sesion.
+  - Abrir la caja con un fondo inicial mayor que cero.
+  - Agregar productos al carrito.
+  - Revisar subtotal, IVA y total.
+  - Registrar una venta.
+  - Revisar el historial.
+  - Cerrar la caja.
+
+
+9. DETENER LOS SERVIDORES
+
+En cada terminal donde este corriendo un servidor, presionar:
+
+  Ctrl+C
+
+
+10. PROBLEMAS COMUNES
+
+Mensaje "Failed to fetch":
+
+  - Confirmar que Django este corriendo en el puerto 8000.
+  - Confirmar que Edge use la URL http://127.0.0.1:8080/FronEnd/index.html.
+  - No usar file:///.
+
+No aparecen las imagenes:
+
+  - Detener el servidor del frontend con Ctrl+C.
+  - Volver a iniciarlo desde C:\Users\dmaya\Residencia\POS.
+  - Usar:
+
+      python -m http.server 8080 --directory C:\Users\dmaya\Residencia\POS
+
+Credenciales incorrectas:
+
+  - Ejecutar nuevamente los comandos de la seccion 4.
+  - Confirmar que se selecciono el rol correcto.
+
+El puerto ya esta ocupado:
+
+  - Cerrar el servidor anterior con Ctrl+C.
+  - Si la terminal anterior ya no existe, cerrar el proceso que este usando
+    el puerto o reiniciar VS Code.
+
+
+11. VALIDAR EL BACKEND SIN ABRIR EL FRONTEND
+
+Desde BakcEnd ejecutar:
+
+  python manage.py check
+  python manage.py test pos
+
+El resultado esperado es:
+
+  System check identified no issues
+  OK
+
+
+IMPORTANTE
+
+No subir al repositorio:
+
+  - .env
+  - db.sqlite3
+  - carpetas __pycache__
+  - contraseñas reales
+  - tokens
+
+El archivo .env.example si se puede subir porque solo contiene nombres y
+valores de ejemplo.
