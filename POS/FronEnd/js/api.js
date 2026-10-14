@@ -39,6 +39,10 @@ async function loginInApi(credentials) {
     return data.user;
 }
 
+async function getCurrentUserFromApi() {
+    return apiRequest('/auth/me/');
+}
+
 async function logoutFromApi() {
     try {
         await apiRequest('/auth/logout/', { method: 'POST' });

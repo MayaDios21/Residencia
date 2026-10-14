@@ -2,36 +2,44 @@
 <!--
     SISTEMA POS - TACOS DE BIRRIA EL COMPITA
 
-    Este archivo define la estructura de la interfaz. No contiene la lógica
-    principal: los eventos llaman funciones de js/script.js y la apariencia
-    se aplica desde css/styles.css.
+    Estructura de la interfaz. La lógica vive en js/ (un archivo por módulo,
+    cargados en orden al final del body) y la apariencia en css/styles.css.
 
     Mapa de secciones:
-    1. head: configuración del documento y archivos externos.
-    2. header: identidad del negocio y fecha de la jornada.
-    3. tabs: navegación entre las pantallas.
-    4. pos-tab: catálogo, carrito y resumen del día.
-    5. settings-tab: IVA, tipo de cambio y mantenimiento.
-    6. admin-tab: alta y lista de productos.
-    7. categories-tab: alta y lista de categorías.
-    8. sales-tab: filtros, resumen e historial de ventas.
-    9. cashbox-tab: apertura, cierre e historial de caja.
-    10. modales: confirmación visual de ventas y acciones.
+    1. Carga de sesión y login.
+    2. Barra superior: logo, negocio, fecha, usuario y cierre de sesión.
+    3. Pestañas: navegación entre pantallas (las de admin se muestran por rol).
+    4. Pantallas: panel, venta, configuración, productos, almacén, categorías,
+       ventas y cierre de caja.
+    5. Modales y avisos.
 -->
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Punto de Venta - Sistema POS</title>
-    <!-- Hoja de estilos: colores, layout, modales y diseño responsive. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#6f292b">
+    <!-- Permite "Agregar a pantalla de inicio" en el iPad y abrirla a pantalla completa. -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="El Compita">
+    <link rel="icon" href="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg">
+    <link rel="apple-touch-icon" href="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg">
+    <title>El Compita · Punto de Venta</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- Acceso inicial: el perfil y las credenciales se mantienen en memoria en esta etapa. -->
-    <main class="entry-screen" id="entry-screen">
+    <!-- Indicador de carga: se muestra mientras se verifica la sesión guardada. -->
+    <div class="session-loading" id="session-loading" role="status" aria-live="polite">
+        <span class="session-loading-spinner" aria-hidden="true"></span>
+        <p>Cargando sesión…</p>
+    </div>
+
+    <!-- Acceso inicial: se muestra solo si no hay una sesión guardada válida. -->
+    <main class="entry-screen" id="entry-screen" hidden>
         <section class="entry-panel" aria-labelledby="entry-title">
             <div class="entry-brand">
-                <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="" class="entry-logo">
+                <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="" class="entry-logo" width="180" height="120">
                 <span class="eyebrow">Tacos de Birria</span>
                 <h1 id="entry-title">El Compita</h1>
                 <p>Punto de Venta</p>
@@ -39,276 +47,282 @@
             <div class="entry-form-wrap">
                 <span class="eyebrow">Acceso al sistema</span>
                 <h2 id="login-heading">Inicio de sesión · Cajero</h2>
-                <form id="entry-login-form" autocomplete="off" onsubmit="return false">
+                <!-- Enter (teclado físico) o "Ir" (teclado del iPad) envían el formulario. -->
+                <form id="entry-login-form" autocomplete="off" onsubmit="handleLoginSubmit(event)">
                     <div class="login-role-selector" role="group" aria-label="Tipo de cuenta">
                         <button class="login-role-button active" id="login-role-cashier" type="button" aria-pressed="true" onclick="selectLoginRole('cashier')">Cajero</button>
                         <button class="login-role-button" id="login-role-admin" type="button" aria-pressed="false" onclick="selectLoginRole('admin')">Administrador</button>
                     </div>
                     <label for="login-username">Usuario</label>
-                    <input id="login-username" name="access-identifier" autocomplete="off" required>
+                    <input id="login-username" name="access-identifier" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" required>
                     <label for="login-password">Contraseña</label>
-                    <input id="login-password" name="access-secret" type="password" autocomplete="new-password" required>
+                    <input id="login-password" name="access-secret" type="password" autocomplete="new-password" enterkeyhint="go" required>
                     <p class="entry-connection-note">Acceso seguro mediante el servidor local de Django.</p>
-                    <button class="btn entry-submit" id="entry-submit" type="button" onclick="startApp()">Entrar a caja</button>
+                    <button class="btn entry-submit" id="entry-submit" type="submit">Entrar a caja</button>
                 </form>
             </div>
         </section>
     </main>
 
-    <div class="container" id="app-container" hidden>
-        <!-- Encabezado: muestra logo, nombre del negocio y fecha actual. -->
-        <div class="header">
-            <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="Tacos El Compita" class="logo">
-            <h1>Tacos de Birria El Compita</h1>
-            <p>Punto de Venta</p>
-            <div class="business-day" aria-live="polite">
-                <span>Jornada del día</span>
-                <strong id="current-business-date">Cargando fecha...</strong>
+    <div class="app" id="app-container" hidden>
+        <!-- Barra superior: logo y nombre a la izquierda; fecha y sesión a la derecha. -->
+        <header class="app-bar">
+            <div class="brand">
+                <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="Tacos de Birria El Compita" class="brand-logo" width="72" height="48">
+                <div class="brand-text">
+                    <span class="brand-kicker">Tacos de Birria</span>
+                    <strong class="brand-name">El Compita</strong>
+                </div>
             </div>
-            <div class="session-access-bar">
-                <span id="session-name"></span>
-                <button class="admin-access-button" id="session-logout" type="button" onclick="logoutSession()">Cerrar sesión</button>
+            <div class="app-bar-meta">
+                <div class="business-day" aria-live="polite">
+                    <span class="visually-hidden">Jornada del día:</span>
+                    <strong id="current-business-date">Cargando fecha…</strong>
+                </div>
+                <div class="session-chip">
+                    <span class="session-role" id="session-role"></span>
+                    <span class="session-user" id="session-user"></span>
+                </div>
+                <button class="logout-button" id="session-logout" type="button" onclick="logoutSession()">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 16l-4-4 4-4"/><path d="M6 12h10"/></svg>
+                    <span>Cerrar sesión</span>
+                </button>
             </div>
-        </div>
+        </header>
 
         <!-- Navegación: cada botón activa una pantalla mediante showTab(). -->
-        <div class="tabs" role="navigation" aria-label="Navegación principal">
-            <button class="tab admin-only" id="admin-dashboard-button" onclick="showTab('admin-dashboard')" hidden>📈 Panel</button>
-            <button class="tab active" onclick="showTab('pos')">🛒 Venta</button>
-            <button class="tab" onclick="showTab('cashbox')">💵 Cierre de caja</button>
-            <button class="tab" onclick="showTab('sales')">📊 Ventas</button>
-            <button class="tab" onclick="showTab('admin')">🍽️ Productos</button>
-            <button class="tab" onclick="showTab('warehouse')">📦 Almacén</button>
-            <button class="tab" onclick="showTab('categories')">🏷️ Categorías</button>
-            <button class="tab" onclick="showTab('settings')">⚙️ Configuración</button>
-        </div>
+        <nav class="tabs" aria-label="Navegación principal">
+            <button class="tab" type="button" data-tab="admin-dashboard" onclick="showTab('admin-dashboard')" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Panel
+            </button>
+            <button class="tab active" type="button" data-tab="pos" onclick="showTab('pos')">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.4a1.5 1.5 0 0 0 1.5 1.1h8.9a1.5 1.5 0 0 0 1.5-1.2L21 8H6"/></svg>Venta
+            </button>
+            <button class="tab" type="button" data-tab="cashbox" onclick="showTab('cashbox')">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>Cierre de caja
+            </button>
+            <button class="tab" type="button" data-tab="sales" onclick="showTab('sales')">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Ventas
+            </button>
+            <button class="tab" type="button" data-tab="admin" onclick="showTab('admin')" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7a3 3 0 0 0 6 0V3"/><path d="M9 3v18"/><path d="M17 3c-2 2-2 6 0 8v10"/></svg>Productos
+            </button>
+            <button class="tab" type="button" data-tab="warehouse" onclick="showTab('warehouse')" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Almacén
+            </button>
+            <button class="tab" type="button" data-tab="categories" onclick="showTab('categories')" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Categorías
+            </button>
+            <button class="tab" type="button" data-tab="settings" onclick="showTab('settings')" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configuración
+            </button>
+        </nav>
 
-        <!-- Panel administrativo: sus indicadores se calculan con el historial local actual. -->
-        <div id="admin-dashboard-tab" class="tab-content admin-only">
-            <div class="dashboard-heading">
-                <div>
-                    <span class="eyebrow">Administración</span>
-                    <h2>Resumen del negocio</h2>
+        <main class="app-content">
+            <!-- Panel administrativo: sus indicadores se calculan con el historial local actual. -->
+            <section id="admin-dashboard-tab" class="tab-content" aria-labelledby="dashboard-title">
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Administración</span>
+                        <h2 id="dashboard-title">Resumen del negocio</h2>
+                    </div>
+                    <label class="inline-field" for="dashboard-period">Periodo
+                        <select id="dashboard-period" onchange="renderAdminDashboard()">
+                            <option value="today">Hoy</option>
+                            <option value="7">Últimos 7 días</option>
+                            <option value="30">Últimos 30 días</option>
+                            <option value="all">Todo el historial</option>
+                        </select>
+                    </label>
                 </div>
-                <label class="dashboard-period-label" for="dashboard-period">Periodo
-                    <select id="dashboard-period" onchange="renderAdminDashboard()">
-                        <option value="today">Hoy</option>
-                        <option value="7">Últimos 7 días</option>
-                        <option value="30">Últimos 30 días</option>
-                        <option value="all">Todo el historial</option>
-                    </select>
-                </label>
-            </div>
-            <div class="dashboard-metrics" aria-live="polite">
-                <article class="dashboard-metric"><span>Ventas netas</span><strong id="admin-metric-sales">$0.00</strong><small id="admin-metric-sales-caption">Periodo seleccionado</small></article>
-                <article class="dashboard-metric"><span>Transacciones</span><strong id="admin-metric-count">0</strong><small>Ventas registradas</small></article>
-                <article class="dashboard-metric"><span>Promedio por venta</span><strong id="admin-metric-average">$0.00</strong><small>Ticket promedio</small></article>
-                <article class="dashboard-metric"><span>Artículos vendidos</span><strong id="admin-metric-items">0</strong><small>Unidades en el periodo</small></article>
-            </div>
-            <div class="dashboard-columns">
-                <section class="dashboard-panel">
-                    <div class="dashboard-panel-heading"><h3>Ventas por día</h3><span id="admin-chart-caption">Periodo seleccionado</span></div>
-                    <div class="dashboard-chart" id="admin-sales-chart" aria-label="Gráfica de ventas por día"></div>
+                <div class="dashboard-metrics" aria-live="polite">
+                    <article class="dashboard-metric"><span>Ventas netas</span><strong id="admin-metric-sales">$0.00</strong><small id="admin-metric-sales-caption">Periodo seleccionado</small></article>
+                    <article class="dashboard-metric"><span>Transacciones</span><strong id="admin-metric-count">0</strong><small>Ventas registradas</small></article>
+                    <article class="dashboard-metric"><span>Promedio por venta</span><strong id="admin-metric-average">$0.00</strong><small>Ticket promedio</small></article>
+                    <article class="dashboard-metric"><span>Artículos vendidos</span><strong id="admin-metric-items">0</strong><small>Unidades en el periodo</small></article>
+                </div>
+                <div class="dashboard-columns">
+                    <section class="panel">
+                        <div class="panel-heading"><h3>Ventas por día</h3><span id="admin-chart-caption">Periodo seleccionado</span></div>
+                        <div class="dashboard-chart" id="admin-sales-chart" aria-label="Gráfica de ventas por día"></div>
+                    </section>
+                    <section class="panel">
+                        <div class="panel-heading"><h3>Inventario por revisar</h3><span id="admin-stock-count">0 productos</span></div>
+                        <div class="dashboard-stock-list" id="admin-stock-alerts"></div>
+                    </section>
+                </div>
+                <section class="panel">
+                    <div class="panel-heading"><h3>Ventas recientes</h3><button class="btn btn-secondary btn-compact" type="button" onclick="showTab('sales')">Ver historial</button></div>
+                    <div class="dashboard-recent-sales" id="admin-recent-sales"></div>
                 </section>
-                <section class="dashboard-panel">
-                    <div class="dashboard-panel-heading"><h3>Inventario por revisar</h3><span id="admin-stock-count">0 productos</span></div>
-                    <div class="dashboard-stock-list" id="admin-stock-alerts"></div>
-                </section>
-            </div>
-            <section class="dashboard-panel dashboard-recent-panel">
-                <div class="dashboard-panel-heading"><h3>Ventas recientes</h3><button class="btn-small" type="button" onclick="showTab('sales')">Ver historial</button></div>
-                <div class="dashboard-recent-sales" id="admin-recent-sales"></div>
             </section>
-        </div>
 
-        <!-- Venta: catálogo de productos, carrito y resumen de la jornada. -->
-        <div id="pos-tab" class="tab-content active">
-            <div class="pos-layout">
-                <div class="products-section">
-                    <div class="section-heading">
-                        <div>
-                            <span class="eyebrow">Menú</span>
-                            <h3>Productos disponibles</h3>
+            <!-- Venta: catálogo de productos, carrito y resumen de la jornada. -->
+            <section id="pos-tab" class="tab-content active" aria-label="Venta">
+                <div class="pos-layout">
+                    <div class="products-section">
+                        <!-- Filtros de categoría; los genera loadCategoryTabs(). -->
+                        <div class="category-tabs" id="category-tabs" role="group" aria-label="Categorías"></div>
+                        <div id="products-grid" class="products-grid"></div>
+                    </div>
+
+                    <aside class="cart-section" aria-labelledby="cart-title">
+                        <div class="cart-header">
+                            <h3 id="cart-title">Carrito</h3>
                         </div>
-                        <span class="help-text">Toca un producto para agregarlo</span>
+                        <div class="cart-items" id="cart-items">
+                            <div class="empty-cart">
+                                <p>Carrito vacío<br>Toca un producto para comenzar</p>
+                            </div>
+                        </div>
+                        <div class="cart-total" id="cart-total" hidden>
+                            <div class="total-line">
+                                <span>Subtotal</span>
+                                <span id="subtotal">$0.00</span>
+                            </div>
+                            <div class="total-line">
+                                <span id="tax-label">IVA</span>
+                                <span id="tax">$0.00</span>
+                            </div>
+                            <div class="total-line final">
+                                <span>Total</span>
+                                <span id="total">$0.00</span>
+                            </div>
+                            <button class="checkout-btn" type="button" onclick="checkout()">Procesar venta</button>
+                        </div>
+                    </aside>
+
+                    <div class="pos-today-summary">
+                        <div><span>Ventas de hoy</span><strong id="today-sales-total">$0.00</strong></div>
+                        <div><span>Órdenes</span><strong id="today-sales-count">0</strong></div>
+                        <div><span>Artículos vendidos</span><strong id="today-items-count">0</strong></div>
+                        <button class="btn btn-secondary btn-compact" type="button" onclick="showTab('cashbox')">Ir a cierre de caja</button>
                     </div>
-                    
-                    <!-- Filtros de categoría; script.js los genera dinámicamente. -->
-                    <div class="category-tabs" id="category-tabs">
-                        <!-- Las pestañas se cargarán aquí. -->
-                    </div>
-                    
-                    <div id="products-grid" class="products-grid">
-                        <!-- Los productos se cargan desde localStorage o valores iniciales. -->
+                </div>
+            </section>
+
+            <!-- Configuración: tipo de cambio, IVA y mantenimiento de datos. -->
+            <section id="settings-tab" class="tab-content" aria-labelledby="settings-title">
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Administración</span>
+                        <h2 id="settings-title">Configuración del sistema</h2>
                     </div>
                 </div>
 
-                <div class="cart-section">
-                    <div class="cart-header">
-                        <h3>Carrito de Compras</h3>
-                        <p>Productos seleccionados</p>
-                    </div>
-                    <div class="cart-items" id="cart-items">
-                        <div class="empty-cart">
-                            <span>•</span>
-                            <p>Carrito vacío<br>Selecciona productos para comenzar</p>
-                        </div>
-                    </div>
-                    <div class="cart-total" id="cart-total" style="display: none;">
-                        <div class="total-line">
-                            <span>Subtotal:</span>
-                            <span id="subtotal">$0.00</span>
-                        </div>
-                        <div class="total-line">
-                            <span>IVA (8%):</span>
-                            <span id="tax">$0.00</span>
-                        </div>
-                        <div class="total-line final">
-                            <span>Total:</span>
-                            <span id="total">$0.00</span>
-                        </div>
-                        <button class="checkout-btn" onclick="checkout()">
-                            Procesar Venta
-                        </button>
-                    </div>
-                </div>
-                <div class="pos-today-summary">
-                    <div><span>Ventas de hoy</span><strong id="today-sales-total">$0.00</strong></div>
-                    <div><span>Órdenes</span><strong id="today-sales-count">0</strong></div>
-                    <div><span>Artículos vendidos</span><strong id="today-items-count">0</strong></div>
-                    <button class="btn-small" onclick="showTab('cashbox')">Ir a cierre de caja →</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Configuración: tipo de cambio, IVA y mantenimiento de datos. -->
-        <div id="settings-tab" class="tab-content">
-            <div class="settings-section">
-                <h3>⚙️ Configuración del Sistema</h3>
-                
                 <div class="settings-container">
-                    <!-- Panel para guardar el tipo de cambio MXN/USD. -->
-                    <div class="settings-panel">
-                        <h4>💱 Tipo de Cambio (Dólar)</h4>
+                    <!-- Tipo de cambio MXN/USD. -->
+                    <div class="panel">
+                        <h3>Tipo de cambio (dólar)</h3>
                         <form id="exchange-rate-form" onsubmit="updateExchangeRate(event)">
                             <div class="form-group">
-                                <label for="exchange-rate-input">Tipo de Cambio Actual (MXN/USD):</label>
-                                <div class="exchange-rate-container">
-                                    <input type="number" id="exchange-rate-input" step="0.01" min="0" required placeholder="19.50">
-                                    <span class="exchange-rate-display" id="exchange-rate-display">$ ---</span>
+                                <label for="exchange-rate-input">Tipo de cambio actual (MXN por USD)</label>
+                                <div class="input-with-badge">
+                                    <input type="number" id="exchange-rate-input" step="0.01" min="0" required placeholder="19.50" inputmode="decimal">
+                                    <span class="value-badge" id="exchange-rate-display">$ ---</span>
                                 </div>
                             </div>
-                            <p class="exchange-rate-info">Ingresa el tipo de cambio actual para convertir precios a dólares</p>
-                            <button type="submit" class="btn">Guardar Tipo de Cambio</button>
+                            <p class="field-help">Se usa para mostrar los precios también en dólares.</p>
+                            <button type="submit" class="btn">Guardar tipo de cambio</button>
                         </form>
-                        <div class="exchange-rate-preview">
-                            <p><strong>Tipo de cambio actual:</strong> <span id="current-exchange-rate">$ ---</span> MXN por USD</p>
-                        </div>
+                        <p class="panel-footnote">Actual: <strong id="current-exchange-rate">$ ---</strong> MXN por USD</p>
                     </div>
 
-                    <!-- Panel para definir el porcentaje de IVA de las ventas. -->
-                    <div class="settings-panel">
-                        <h4>🧾 Configurar IVA</h4>
+                    <!-- Porcentaje de IVA de las ventas. -->
+                    <div class="panel">
+                        <h3>IVA</h3>
                         <form id="tax-rate-form" onsubmit="updateTaxRate(event)">
                             <div class="form-group">
-                                <label for="tax-rate-input">Porcentaje de IVA (%):</label>
-                                <div class="tax-rate-container">
-                                    <input type="number" id="tax-rate-input" step="0.01" min="0" max="100" required placeholder="8.00">
-                                    <span class="tax-rate-display" id="tax-rate-display">---</span>
+                                <label for="tax-rate-input">Porcentaje de IVA (%)</label>
+                                <div class="input-with-badge">
+                                    <input type="number" id="tax-rate-input" step="0.01" min="0" max="100" required placeholder="8.00" inputmode="decimal">
+                                    <span class="value-badge" id="tax-rate-display">---</span>
                                 </div>
                             </div>
-                            <p class="tax-rate-info">Ingresa el porcentaje de IVA que se aplicará a las ventas</p>
+                            <p class="field-help">Ejemplo: con IVA de 8% y subtotal de $100 se agregan $8.</p>
                             <button type="submit" class="btn">Guardar IVA</button>
                         </form>
-                        <div class="tax-rate-preview">
-                            <p><strong>IVA actual:</strong> <span id="current-tax-rate">---</span>%</p>
-                            <p style="font-size: 0.9em; color: white; margin-top: 10px;">
-                                Ejemplo: Si el IVA es 8% y el subtotal es $100, se agregarán $8
-                            </p>
-                        </div>
+                        <p class="panel-footnote">Actual: <strong id="current-tax-rate">---</strong>%</p>
                     </div>
 
-                    <!-- Panel para reiniciar los datos al menú predeterminado. -->
-                    <div class="settings-panel">
-                        <h4>⚙️ Mantenimiento del Sistema</h4>
-                        <p style="color: #2c3e50; margin-bottom: 15px;">Utiliza esta opción si hay problemas o quieres limpiar todos los datos.</p>
-                        <button class="btn" onclick="resetSystem()" style="background-color: #e74c3c;">🔄 Reiniciar Sistema (Datos por Defecto)</button>
-                        <p style="font-size: 0.85em; color: #2c3e50; margin-top: 10px;">
-                            ⚠️ Esto eliminará todos los datos guardados y volverá a cargar los productos por defecto.
-                        </p>
+                    <!-- Reinicio a los datos por defecto. -->
+                    <div class="panel panel-danger">
+                        <h3>Mantenimiento</h3>
+                        <p class="field-help">Elimina todos los datos guardados en este dispositivo y vuelve a cargar el menú por defecto. Úsalo solo si hay problemas.</p>
+                        <button class="btn btn-danger" type="button" onclick="resetSystem()">Reiniciar sistema</button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Productos: formulario de alta y lista administrativa del catálogo. -->
-        <div id="admin-tab" class="tab-content">
-            <div class="admin-section">
-                <div class="admin-panel">
-                    <h3>Agregar Producto</h3>
-                    <form id="add-product-form" onsubmit="addProduct(event)">
-                        <div class="form-group">
-                            <label for="product-name">Nombre del Producto:</label>
-                            <input type="text" id="product-name" required placeholder="Ej: Coca Cola 600ml">
-                        </div>
-                        <div class="form-group">
-                            <label for="product-price">Precio:</label>
-                            <input type="number" id="product-price" step="0.01" min="0" required placeholder="0.00">
-                        </div>
-                        <div class="form-group">
-                            <label for="product-category">Categoría:</label>
-                            <div class="category-selector">
-                                <select id="product-category" required>
-                                    <option value="">Seleccionar categoría...</option>
-                                    <!-- Las categorías se cargarán aquí -->
-                                </select>
-                                <button type="button" class="btn-small" onclick="showNewCategoryForm()">+ Nueva</button>
+            <!-- Productos: formulario de alta y lista administrativa del catálogo. -->
+            <section id="admin-tab" class="tab-content" aria-labelledby="products-title">
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Catálogo</span>
+                        <h2 id="products-title">Productos</h2>
+                    </div>
+                </div>
+                <div class="admin-section">
+                    <div class="panel">
+                        <h3>Agregar producto</h3>
+                        <form id="add-product-form" onsubmit="addProduct(event)">
+                            <div class="form-group">
+                                <label for="product-name">Nombre del producto</label>
+                                <input type="text" id="product-name" required placeholder="Ej.: Coca Cola 600 ml" autocomplete="off">
                             </div>
-                        </div>
-                        <div class="form-group" id="new-category-form" style="display: none;">
-                            <label for="new-category-name">Nombre de nueva categoría:</label>
-                            <div class="category-selector">
-                                <input type="text" id="new-category-name" placeholder="Ej: Bebidas Calientes">
-                                <input type="color" id="new-category-color" value="#722F37" title="Color de categoría">
-                                <button type="button" class="btn-small" onclick="createNewCategory()">Crear</button>
-                                <button type="button" class="btn-small-cancel" onclick="hideNewCategoryForm()">Cancelar</button>
+                            <div class="form-group">
+                                <label for="product-price">Precio</label>
+                                <input type="number" id="product-price" step="0.01" min="0" required placeholder="0.00" inputmode="decimal">
                             </div>
-                        </div>
-                        <!-- Imagen opcional del producto; se comprime desde script.js. -->
-                        <div class="form-group">
-                            <label for="product-image">Imagen del Producto</label>
-                            <input type="file" id="product-image" name="product-image" accept="image/*">
-                        </div>
-                        <button type="submit" class="btn">Agregar Producto</button>
-                    </form>
-                </div>
-
-                <div class="admin-panel">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="margin: 0;">📋 Lista de Productos</h3>
-                        <button class="btn-small btn-danger" onclick="deleteAllProducts()" title="Eliminar todos los productos">🗑️ Borrar Todos</button>
+                            <div class="form-group">
+                                <label for="product-category">Categoría</label>
+                                <div class="category-selector">
+                                    <select id="product-category" required>
+                                        <option value="">Seleccionar categoría…</option>
+                                    </select>
+                                    <button type="button" class="btn btn-secondary" onclick="showNewCategoryForm()">+ Nueva</button>
+                                </div>
+                            </div>
+                            <div class="form-group" id="new-category-form" hidden>
+                                <label for="new-category-name">Nombre de la nueva categoría</label>
+                                <div class="category-selector">
+                                    <input type="text" id="new-category-name" placeholder="Ej.: Bebidas calientes" autocomplete="off">
+                                    <input type="color" id="new-category-color" value="#722F37" aria-label="Color de la categoría">
+                                    <button type="button" class="btn btn-secondary" onclick="createNewCategory()">Crear</button>
+                                    <button type="button" class="btn btn-ghost" onclick="hideNewCategoryForm()">Cancelar</button>
+                                </div>
+                            </div>
+                            <!-- Imagen opcional del producto; se comprime antes de guardarla. -->
+                            <div class="form-group">
+                                <label for="product-image">Imagen del producto (opcional)</label>
+                                <input type="file" id="product-image" name="product-image" accept="image/*">
+                            </div>
+                            <button type="submit" class="btn">Agregar producto</button>
+                        </form>
                     </div>
-                    <div id="product-list" class="product-list">
-                        <!-- La lista se genera dinámicamente desde JavaScript. -->
+
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <h3>Lista de productos</h3>
+                            <button class="btn btn-danger btn-compact" type="button" onclick="deleteAllProducts()">Borrar todos</button>
+                        </div>
+                        <div id="product-list" class="item-list"></div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Almacén: consulta existencias y registra entradas o ajustes. -->
-        <div id="warehouse-tab" class="tab-content">
-            <div class="warehouse-section">
-                <div class="sales-header">
+            <!-- Almacén: consulta existencias y registra entradas o ajustes. -->
+            <section id="warehouse-tab" class="tab-content" aria-labelledby="warehouse-title">
+                <div class="page-heading">
                     <div>
                         <span class="eyebrow">Inventario</span>
-                        <h3>Almacén</h3>
+                        <h2 id="warehouse-title">Almacén</h2>
                     </div>
-                    <div class="sales-filters">
-                        <div class="filter-group">
-                            <label for="warehouse-search">Buscar:</label>
-                            <input type="search" id="warehouse-search" placeholder="Producto..." oninput="loadWarehouse()">
-                        </div>
-                        <label class="warehouse-check">
+                    <div class="toolbar">
+                        <label class="inline-field" for="warehouse-search">Buscar
+                            <input type="search" id="warehouse-search" placeholder="Producto…" oninput="loadWarehouse()" autocomplete="off">
+                        </label>
+                        <label class="check-field">
                             <input type="checkbox" id="warehouse-low-stock" onchange="loadWarehouse()">
                             Solo stock bajo
                         </label>
@@ -316,20 +330,20 @@
                 </div>
 
                 <div class="warehouse-layout">
-                    <div class="warehouse-panel warehouse-table-panel">
-                        <div class="warehouse-panel-heading">
-                            <h4>Existencias actuales</h4>
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <h3>Existencias actuales</h3>
                             <span id="warehouse-product-count">0 productos</span>
                         </div>
-                        <div class="warehouse-table-wrapper">
-                            <table class="warehouse-table">
+                        <div class="table-wrapper">
+                            <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>Producto</th>
-                                        <th>Categoría</th>
-                                        <th>Existencia</th>
-                                        <th>Mínimo</th>
-                                        <th>Estado</th>
+                                        <th scope="col">Producto</th>
+                                        <th scope="col">Categoría</th>
+                                        <th scope="col" class="num">Existencia</th>
+                                        <th scope="col" class="num">Mínimo</th>
+                                        <th scope="col">Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="warehouse-list"></tbody>
@@ -337,10 +351,10 @@
                         </div>
                     </div>
 
-                    <div class="warehouse-panel warehouse-form-panel">
+                    <div class="panel panel-accent">
                         <span class="eyebrow">Operación de inventario</span>
-                        <h4>Actualizar existencias</h4>
-                        <p class="warehouse-form-intro">Registra entradas, salidas o correcciones para mantener el stock al día.</p>
+                        <h3>Actualizar existencias</h3>
+                        <p class="field-help">Registra entradas, salidas o correcciones para mantener el stock al día.</p>
                         <form id="inventory-movement-form" onsubmit="registerInventoryMovement(event)">
                             <div class="form-group">
                                 <label for="movement-product">Producto</label>
@@ -356,144 +370,148 @@
                             </div>
                             <div class="form-group">
                                 <label for="movement-quantity">Cantidad</label>
-                                <input type="number" id="movement-quantity" min="1" step="1" required placeholder="0">
-                                <small class="warehouse-field-help">Usa números enteros positivos.</small>
+                                <input type="number" id="movement-quantity" min="1" step="1" required placeholder="0" inputmode="numeric">
+                                <small class="field-help">Usa números enteros positivos.</small>
                             </div>
                             <div class="form-group">
                                 <label for="movement-reason">Motivo</label>
-                                <input type="text" id="movement-reason" maxlength="120" placeholder="Ej: Compra de mercancía">
+                                <input type="text" id="movement-reason" maxlength="120" placeholder="Ej.: Compra de mercancía" autocomplete="off">
                             </div>
-                            <button type="submit" class="btn warehouse-submit">＋ Guardar movimiento</button>
+                            <button type="submit" class="btn btn-block">Guardar movimiento</button>
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Categorías: creación, color identificador y lista de categorías. -->
-        <div id="categories-tab" class="tab-content">
-            <div class="admin-section">
-                <div class="admin-panel">
-                    <h3>Crear Nueva Categoría</h3>
-                    <form id="add-category-form" onsubmit="addCategoryFromForm(event)">
-                        <div class="form-group">
-                            <label for="category-name">Nombre de la Categoría:</label>
-                            <input type="text" id="category-name" required placeholder="Ej: Bebidas Calientes">
-                        </div>
-                        <div class="form-group">
-                            <label for="category-color">Color de la Categoría:</label>
-                            <div class="color-selector">
-                                <input type="color" id="category-color" value="#722F37">
-                                <div class="color-presets">
-                                    <div class="color-preset" style="background: #722F37" onclick="setColor('#722F37')"></div>
-                                    <div class="color-preset" style="background: #3498db" onclick="setColor('#3498db')"></div>
-                                    <div class="color-preset" style="background: #e74c3c" onclick="setColor('#e74c3c')"></div>
-                                    <div class="color-preset" style="background: #f39c12" onclick="setColor('#f39c12')"></div>
-                                    <div class="color-preset" style="background: #9b59b6" onclick="setColor('#9b59b6')"></div>
-                                    <div class="color-preset" style="background: #27ae60" onclick="setColor('#27ae60')"></div>
-                                    <div class="color-preset" style="background: #34495e" onclick="setColor('#34495e')"></div>
-                                    <div class="color-preset" style="background: #e67e22" onclick="setColor('#e67e22')"></div>
+            <!-- Categorías: creación, color identificador y lista de categorías. -->
+            <section id="categories-tab" class="tab-content" aria-labelledby="categories-title">
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Catálogo</span>
+                        <h2 id="categories-title">Categorías</h2>
+                    </div>
+                </div>
+                <div class="admin-section">
+                    <div class="panel">
+                        <h3>Crear nueva categoría</h3>
+                        <form id="add-category-form" onsubmit="addCategoryFromForm(event)">
+                            <div class="form-group">
+                                <label for="category-name">Nombre de la categoría</label>
+                                <input type="text" id="category-name" required placeholder="Ej.: Bebidas calientes" autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label for="category-color">Color de la categoría</label>
+                                <div class="color-selector">
+                                    <input type="color" id="category-color" value="#722F37">
+                                    <div class="color-presets" role="group" aria-label="Colores sugeridos">
+                                        <button type="button" class="color-preset" data-color="#722F37" style="--swatch: #722F37" onclick="setColor('#722F37')" aria-label="Guinda" aria-pressed="false"></button>
+                                        <button type="button" class="color-preset" data-color="#3498db" style="--swatch: #3498db" onclick="setColor('#3498db')" aria-label="Azul" aria-pressed="false"></button>
+                                        <button type="button" class="color-preset" data-color="#e74c3c" style="--swatch: #e74c3c" onclick="setColor('#e74c3c')" aria-label="Rojo" aria-pressed="false"></button>
+                                        <button type="button" class="color-preset" data-color="#f39c12" style="--swatch: #f39c12" onclick="setColor('#f39c12')" aria-label="Naranja" aria-pressed="false"></button>
+                                        <button type="button" class="color-preset" data-color="#9b59b6" style="--swatch: #9b59b6" onclick="setColor('#9b59b6')" aria-label="Morado" aria-pressed="false"></button>
+                                        <button type="button" class="color-preset" data-color="#27ae60" style="--swatch: #27ae60" onclick="setColor('#27ae60')" aria-label="Verde" aria-pressed="false"></button>
+                                        <button type="button" class="color-preset" data-color="#34495e" style="--swatch: #34495e" onclick="setColor('#34495e')" aria-label="Gris azulado" aria-pressed="false"></button>
+                                        <button type="button" class="color-preset" data-color="#e67e22" style="--swatch: #e67e22" onclick="setColor('#e67e22')" aria-label="Calabaza" aria-pressed="false"></button>
+                                    </div>
                                 </div>
                             </div>
+                            <button type="submit" class="btn">Crear categoría</button>
+                        </form>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <h3>Lista de categorías</h3>
+                            <button class="btn btn-danger btn-compact" type="button" onclick="deleteAllCategories()">Borrar todas</button>
                         </div>
-                        <button type="submit" class="btn">Crear Categoría</button>
-                    </form>
-                </div>
-
-                <div class="admin-panel">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h3 style="margin: 0;">Lista de Categorías</h3>
-                        <button class="btn-small btn-danger" onclick="deleteAllCategories()" title="Eliminar todas las categorías">🗑️ Borrar Todas</button>
-                    </div>
-                    <div id="category-list" class="category-list">
-                        <!-- La lista se genera dinámicamente desde JavaScript. -->
+                        <div id="category-list" class="item-list"></div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Ventas: filtros, indicadores y detalle del historial de transacciones. -->
-        <div id="sales-tab" class="tab-content">
-            <div class="sales-section">
-                <div class="sales-header">
-                    <h3>Historial de Ventas</h3>
-                    <div class="sales-filters">
-                        <div class="filter-group">
-                            <label for="date-filter">Filtrar por:</label>
+            <!-- Ventas: filtros, indicadores y detalle del historial de transacciones. -->
+            <section id="sales-tab" class="tab-content" aria-labelledby="sales-title">
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Historial</span>
+                        <h2 id="sales-title">Ventas</h2>
+                    </div>
+                    <div class="toolbar">
+                        <label class="inline-field" for="date-filter">Filtrar por
                             <select id="date-filter" onchange="filterSales()">
                                 <option value="today">Hoy</option>
-                                <option value="week">Esta Semana</option>
-                                <option value="month">Este Mes</option>
-                                <option value="all">Todas las Ventas</option>
+                                <option value="week">Esta semana</option>
+                                <option value="month">Este mes</option>
+                                <option value="all">Todas las ventas</option>
                             </select>
+                        </label>
+                        <div class="inline-field">
+                            <span id="date-range-label">Rango de fechas</span>
+                            <div class="date-range" role="group" aria-labelledby="date-range-label">
+                                <input type="date" id="start-date" onchange="filterSales()" aria-label="Desde">
+                                <span aria-hidden="true">a</span>
+                                <input type="date" id="end-date" onchange="filterSales()" aria-label="Hasta">
+                            </div>
                         </div>
-                        <div class="filter-group">
-                            <label for="date-range">Rango de fechas:</label>
-                            <input type="date" id="start-date" onchange="filterSales()">
-                            <span>a</span>
-                            <input type="date" id="end-date" onchange="filterSales()">
-                        </div>
-                        <button class="btn-small" onclick="exportSales()">Exportar</button>
-                        <button class="btn-small" onclick="verifySalesIntegrity()">Verificar</button>
-                        <button class="btn-small btn-danger" onclick="clearSalesHistory()">Borrar Historial</button>
                     </div>
+                </div>
+
+                <div class="toolbar toolbar-actions">
+                    <button class="btn btn-secondary btn-compact" type="button" onclick="exportSales()">Exportar</button>
+                    <button class="btn btn-secondary btn-compact" type="button" onclick="verifySalesIntegrity()">Verificar</button>
+                    <button class="btn btn-danger btn-compact" type="button" onclick="clearSalesHistory()">Borrar historial</button>
                 </div>
 
                 <div class="sales-summary">
                     <div class="summary-card">
-                        <h4>Total del Período</h4>
+                        <h3>Total del periodo</h3>
                         <span id="total-sales">$0.00</span>
                     </div>
                     <div class="summary-card">
-                        <h4>Número de Ventas</h4>
+                        <h3>Número de ventas</h3>
                         <span id="total-transactions">0</span>
                     </div>
                     <div class="summary-card">
-                        <h4>Productos Vendidos</h4>
+                        <h3>Productos vendidos</h3>
                         <span id="total-items">0</span>
                     </div>
                     <div class="summary-card">
-                        <h4>Promedio por Venta</h4>
+                        <h3>Promedio por venta</h3>
                         <span id="average-sale">$0.00</span>
                     </div>
                 </div>
 
-                <div class="sales-list-container">
-                    <div class="sales-list-header">
-                        <h4>Lista de Ventas</h4>
-                        <div class="search-box">
-                            <input type="text" id="sales-search" placeholder="Buscar por ID o productos..." onkeyup="searchSales()">
-                        </div>
+                <div class="panel panel-flush">
+                    <div class="panel-heading panel-heading-bar">
+                        <h3>Lista de ventas</h3>
+                        <input type="search" class="search-input" id="sales-search" placeholder="Buscar por ID o productos…" onkeyup="searchSales()" aria-label="Buscar ventas" autocomplete="off">
                     </div>
                     <div id="sales-list" class="sales-list">
                         <div class="empty-sales">
-                            <span>•</span>
                             <p>No hay ventas registradas<br>Las ventas aparecerán aquí</p>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Caja: registra el fondo inicial y calcula el cierre de la jornada. -->
-        <div id="cashbox-tab" class="tab-content">
-            <div class="cashbox-section">
-                <div class="cashbox-title">
+            <!-- Caja: registra el fondo inicial y calcula el cierre de la jornada. -->
+            <section id="cashbox-tab" class="tab-content" aria-labelledby="cashbox-title">
+                <div class="page-heading">
                     <div>
                         <span class="eyebrow">Inicio de jornada</span>
-                        <h3>Apertura y cierre de caja</h3>
-                        <p>Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.</p>
+                        <h2 id="cashbox-title">Apertura y cierre de caja</h2>
+                        <p class="page-subtitle">Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.</p>
                     </div>
-                    <div class="cashbox-status" id="cashbox-status">Sin cierre de hoy</div>
+                    <div class="status-pill" id="cashbox-status">Sin cierre de hoy</div>
                 </div>
-                
+
                 <div class="cashbox-container">
-                    <div class="cashbox-form-panel">
-                        <h4>1. Iniciar caja</h4>
+                    <div class="panel">
+                        <h3>1. Iniciar caja</h3>
                         <form id="opening-cash-form" onsubmit="openCashBox(event)">
                             <div class="form-group">
                                 <label for="initial-fund">Fondo inicial de caja ($)</label>
-                                <input type="number" id="initial-fund" step="0.01" min="0" required placeholder="5000.00">
+                                <input type="number" id="initial-fund" step="0.01" min="0" required placeholder="5000.00" inputmode="decimal">
                             </div>
                             <button type="submit" class="btn">Iniciar jornada</button>
                         </form>
@@ -501,65 +519,69 @@
                             Fondo protegido de hoy: <strong id="opening-fund-value">$0.00</strong>
                         </div>
 
-                        <h4 class="cashbox-step-title" id="cashbox-closing-step">2. Cerrar caja</h4>
+                        <h3 class="cashbox-step-title" id="cashbox-closing-step">2. Cerrar caja</h3>
                         <form id="cashbox-form" onsubmit="calculateCashBox(event)">
                             <div class="form-group">
                                 <label for="daily-sales">Total de ventas del día ($)</label>
                                 <input type="number" id="daily-sales" step="0.01" min="0" readonly>
-                                <small>Se obtiene automáticamente de las ventas registradas.</small>
+                                <small class="field-help">Se obtiene automáticamente de las ventas registradas.</small>
                             </div>
                             <button type="submit" class="btn">Revisar cierre</button>
                         </form>
                     </div>
 
                     <!-- Resultados: muestra fondo protegido, ventas y efectivo esperado. -->
-                    <div class="cashbox-results-panel" id="cashbox-results" style="display: none;">
-                        <h4>3. Resumen del cierre</h4>
+                    <div class="panel cashbox-results-panel" id="cashbox-results" hidden>
+                        <h3>3. Resumen del cierre</h3>
                         <div class="result-item">
-                            <span>Fondo protegido:</span>
+                            <span>Fondo protegido</span>
                             <span class="result-value" id="retained-cash">$0.00</span>
                         </div>
                         <div class="result-item">
-                            <span>Ventas para retirar:</span>
+                            <span>Ventas para retirar</span>
                             <span class="result-value" id="total-cashbox">$0.00</span>
                         </div>
                         <div class="result-item">
-                            <span>Total esperado en caja:</span>
+                            <span>Total esperado en caja</span>
                             <span class="result-value" id="net-sales">$0.00</span>
                         </div>
-                        <button class="btn btn-success" onclick="confirmCashBoxRecord()">Guardar cierre de jornada</button>
+                        <button class="btn btn-success btn-block" type="button" onclick="confirmCashBoxRecord()">Guardar cierre de jornada</button>
                     </div>
                 </div>
 
-                <!-- Tabla de historial: conserva los cierres anteriores y sus acciones. -->
-                <div class="cashbox-history-panel">
-                    <h4>Historial de cierres</h4>
-                    <div class="history-controls">
-                        <button class="btn-small" onclick="clearCashBoxHistory()" style="background: #e74c3c;">Limpiar Historial</button>
-                        <button class="btn-small" onclick="exportCashBoxHistory()">Exportar CSV</button>
+                <!-- Historial de cierres anteriores. -->
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3>Historial de cierres</h3>
+                        <div class="toolbar">
+                            <button class="btn btn-secondary btn-compact" type="button" onclick="exportCashBoxHistory()">Exportar CSV</button>
+                            <button class="btn btn-danger btn-compact" type="button" onclick="clearCashBoxHistory()">Limpiar historial</button>
+                        </div>
                     </div>
-                    <table class="cashbox-table" id="cashbox-table">
-                        <thead>
-                            <tr>
-                                <th>Fecha y Hora</th>
-                                <th>Fondo inicial</th>
-                                <th>Ventas</th>
-                                <th>Gastos</th>
-                                <th>Efectivo contado</th>
-                                <th>Fondo retenido</th>
-                                <th>Retiro</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cashbox-tbody">
-                            <tr>
-                                <td colspan="8" style="text-align: center; padding: 20px; color: #999;">No hay cierres registrados</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="table-wrapper">
+                        <table class="data-table" id="cashbox-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Fecha y hora</th>
+                                    <th scope="col" class="num">Fondo inicial</th>
+                                    <th scope="col" class="num">Ventas</th>
+                                    <th scope="col" class="num">Gastos</th>
+                                    <th scope="col" class="num">Efectivo contado</th>
+                                    <th scope="col" class="num">Fondo retenido</th>
+                                    <th scope="col" class="num">Retiro</th>
+                                    <th scope="col"><span class="visually-hidden">Acciones</span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="cashbox-tbody">
+                                <tr>
+                                    <td colspan="8" class="table-empty">No hay cierres registrados</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
-        </div>
+            </section>
+        </main>
     </div>
 
     <!-- Modal de venta: revisa artículos, IVA y total antes de registrar. -->
@@ -580,11 +602,12 @@
                 <div class="sale-modal-total"><span>Total a cobrar</span><strong id="sale-modal-total">$0.00</strong></div>
             </div>
             <div class="sale-modal-actions">
-                <button class="btn-small-cancel" type="button" onclick="closeSaleModal()">Seguir revisando</button>
+                <button class="btn btn-ghost" type="button" onclick="closeSaleModal()">Seguir revisando</button>
                 <button class="btn btn-success sale-confirm-btn" type="button" onclick="confirmSale()">Confirmar y registrar venta</button>
             </div>
         </div>
     </div>
+
     <!-- Modal general: confirma aperturas, eliminaciones y cambios importantes. -->
     <div id="action-confirmation-modal" class="sale-modal" role="dialog" aria-modal="true" aria-labelledby="action-modal-title" hidden>
         <div class="sale-modal-backdrop" onclick="closeActionModal()"></div>
@@ -598,14 +621,31 @@
             </div>
             <div class="action-modal-message" id="action-modal-message"></div>
             <div class="sale-modal-actions">
-                <button class="btn-small-cancel" type="button" onclick="closeActionModal()">Cancelar</button>
+                <button class="btn btn-ghost" type="button" onclick="closeActionModal()">Cancelar</button>
                 <button class="btn btn-success sale-confirm-btn" type="button" onclick="confirmActionModal()">Confirmar cambio</button>
             </div>
         </div>
     </div>
 
+    <!-- Avisos temporales (showNotification). -->
+    <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
+
+    <!-- Módulos: el orden importa (estado → persistencia → utilidades → pantallas → arranque). -->
     <script src="js/api.js"></script>
-    <!-- Carga la lógica después de construir toda la interfaz. -->
-    <script src="js/script.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/session.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/categories.js"></script>
+    <script src="js/products.js"></script>
+    <script src="js/cart.js"></script>
+    <script src="js/sales.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/cashbox.js"></script>
+    <script src="js/warehouse.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
