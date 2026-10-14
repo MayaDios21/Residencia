@@ -24,3 +24,14 @@ class IsAdminRole(HasRole):
 
 class IsCashierRole(HasRole):
     required_role = UserProfile.Role.CASHIER
+
+
+class IsCatalogUser(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        try:
+            return request.user.profile.role in UserProfile.Role.values
+        except UserProfile.DoesNotExist:
+            return False
