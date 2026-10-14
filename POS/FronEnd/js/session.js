@@ -50,6 +50,9 @@ async function startApp() {
     submit.disabled = true;
 
     try {
+        // No reutilizar tokens que hayan quedado guardados en otra sesión local.
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        clearSessionStorage();
         const user = await loginInApi({
             username,
             password,

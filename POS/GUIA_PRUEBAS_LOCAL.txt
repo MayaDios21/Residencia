@@ -59,23 +59,23 @@ Ejecutar desde:
 
 Administrador:
 
-  python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='admin'); u.set_password('AdminTemporal2026!'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'admin'})"
+  python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='admin'); u.set_password('1234'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'admin'})"
 
 Cajero:
 
-  python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='cajero'); u.set_password('CajeroTemporal2026!'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'cashier'})"
+  python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='cajero'); u.set_password('1234'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'cashier'})"
 
 Credenciales temporales:
 
   Administrador
   Usuario: admin
-  Contraseña: AdminTemporal2026!
+  Contraseña: 1234
 
   Cajero
   Usuario: cajero
-  Contraseña: CajeroTemporal2026!
+  Contraseña: 1234
 
-Estas contraseñas son únicamente para desarrollo local y deben cambiarse
+Esta contraseña es únicamente para desarrollo local y debe cambiarse
 antes de utilizar el sistema en producción.
 
 
@@ -116,11 +116,19 @@ raiz POS para que tambien se sirvan las imagenes de la carpeta Public.
 
 7. ABRIR EL SISTEMA
 
-Abrir Microsoft Edge en:
+Abrir Chrome, Microsoft Edge o cualquier navegador en:
 
   http://127.0.0.1:8080/FronEnd/index.html
 
-No abrir el archivo directamente con una ruta file:///.
+También puedes usar:
+
+  http://localhost:8080/FronEnd/index.html
+
+La aplicación permite probarse desde un servidor local alternativo como
+Live Server en los puertos 5500, 3000 o 5173 mientras DJANGO_DEBUG=True.
+No abras el archivo directamente con una ruta file:/// si puedes evitarlo;
+usar una URL http://local garantiza que todos los recursos se carguen igual
+en Chrome, Edge y otros navegadores.
 
 Para probar como administrador:
 

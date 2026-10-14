@@ -11,8 +11,14 @@ class LoginSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    role = serializers.CharField(source='profile.role', read_only=True)
+    role = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ('id', 'username', 'first_name', 'last_name', 'role')
+
+    def get_role(self, user):
+        try:
+            return user.profile.role
+        except UserProfile.DoesNotExist:
+            return None

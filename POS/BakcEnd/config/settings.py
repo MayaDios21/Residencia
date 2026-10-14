@@ -147,7 +147,7 @@ REST_FRAMEWORK = {
     ],
 }
 
-CORS_ALLOWED_ORIGINS = [
+configured_cors_origins = [
     origin.strip()
     for origin in os.getenv(
         'CORS_ALLOWED_ORIGINS',
@@ -155,3 +155,16 @@ CORS_ALLOWED_ORIGINS = [
     ).split(',')
     if origin.strip()
 ]
+
+if DEBUG:
+    configured_cors_origins.extend([
+        'http://localhost:5500',
+        'http://127.0.0.1:5500',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'null',
+    ])
+
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(configured_cors_origins))
