@@ -49,7 +49,9 @@ async function registerInventoryMovement(event) {
     const reason = document.getElementById('movement-reason').value.trim();
     const product = products.find(item => item.id === productId);
 
-    if (!product || !Number.isInteger(quantity) || quantity <= 0) {
+    // Un ajuste fija el stock al valor indicado, por eso es el único que admite 0.
+    const minimumQuantity = type === 'ajuste' ? 0 : 1;
+    if (!product || !Number.isInteger(quantity) || quantity < minimumQuantity) {
         showNotification('⚠️ Selecciona un producto y una cantidad válida.');
         return;
     }
@@ -61,12 +63,14 @@ async function registerInventoryMovement(event) {
             if (Number.isFinite(response?.stock_remaining)) product.stock = response.stock_remaining;
         } else {
             const currentStock = getProductStock(product) || 0;
-            const change = type === 'entrada' ? quantity : -quantity;
-            if (currentStock + change < 0) {
+            const newStock = type === 'entrada' ? currentStock + quantity
+                : type === 'ajuste' ? quantity
+                : currentStock - quantity;
+            if (newStock < 0) {
                 showNotification('⚠️ El movimiento no puede dejar el stock en negativo.');
                 return;
             }
-            product.stock = currentStock + change;
+            product.stock = newStock;
             product.minimum_stock = getProductMinimumStock(product);
             saveProducts();
         }
@@ -75,7 +79,9 @@ async function registerInventoryMovement(event) {
         loadWarehouse();
         showNotification('✓ Movimiento de inventario registrado.');
     } catch (error) {
-        showNotification('⚠️ No se pudo registrar el movimiento.');
+        showNotification(error.status === 409
+            ? '⚠️ El movimiento no puede dejar el stock en negativo.'
+            : '⚠️ No se pudo registrar el movimiento.');
         console.error('Error al registrar movimiento:', error);
     }
 }

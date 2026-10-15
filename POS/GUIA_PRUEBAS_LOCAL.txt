@@ -47,6 +47,11 @@ Aplicar las migraciones:
 
   python manage.py migrate
 
+Cada vez que se descarguen cambios del repositorio (git pull) que incluyan
+archivos nuevos en BakcEnd\pos\migrations, volver a ejecutar:
+
+  python manage.py migrate
+
 La base db.sqlite3 es local y esta excluida de Git. Cada integrante debe
 crear sus propios usuarios en su computadora.
 
@@ -84,6 +89,11 @@ Administrador:
 Cajero:
 
   python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='cajero'); u.set_password('1234'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'cashier'})"
+
+Para entrar al panel de Django (http://127.0.0.1:8000/admin/) con el
+usuario admin, darle acceso de staff (solo una vez):
+
+  python manage.py shell -c "from django.contrib.auth.models import User; User.objects.filter(username='admin').update(is_staff=True, is_superuser=True)"
 
 Credenciales temporales:
 
@@ -172,6 +182,19 @@ Administrador:
   - Revisar productos, categorias, almacen y configuracion.
   - Cerrar sesion.
 
+Inventario en el backend (panel de Django):
+
+  - Entrar a http://127.0.0.1:8000/admin/ con admin / 1234.
+  - En "Productos", crear o editar un producto y revisar las columnas
+    Stock y Minimum stock.
+  - En "Movimientos de inventario", registrar una entrada, una salida y un
+    ajuste, y revisar que el stock del producto cambie.
+  - Nota: mientras USE_API sea false en el archivo FronEnd\js\api.js, la pestaña
+    Almacen del sistema guarda los movimientos solo en el navegador; el
+    panel de Django muestra lo que esta guardado en la base de datos.
+  - En la pestaña Almacen, un "Ajuste de inventario" fija el stock al numero
+    escrito (no lo resta).
+
 Cajero:
 
   - Iniciar sesion.
@@ -229,6 +252,9 @@ El resultado esperado es:
 
   System check identified no issues
   OK
+
+Las pruebas estan en la carpeta BakcEnd\pos\tests\ (una por modulo:
+test_auth.py, test_catalog.py, test_inventory.py).
 
 
 IMPORTANTE
