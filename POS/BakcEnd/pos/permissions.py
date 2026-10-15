@@ -35,3 +35,7 @@ class IsCatalogUser(BasePermission):
             return request.user.profile.role in UserProfile.Role.values
         except UserProfile.DoesNotExist:
             return False
+
+
+# Ventas y caja las pueden operar ambos roles, igual que la lectura del catálogo.
+IsPosUser = IsCatalogUser

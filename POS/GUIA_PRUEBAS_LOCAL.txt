@@ -50,6 +50,26 @@ Aplicar las migraciones:
 La base db.sqlite3 es local y esta excluida de Git. Cada integrante debe
 crear sus propios usuarios en su computadora.
 
+Para validar PostgreSQL en desarrollo, configurar `DATABASE_URL` en la
+terminal del backend antes de ejecutar Django. No escribir credenciales reales
+en `.env.example` ni subir un archivo `.env`:
+
+  $env:DATABASE_URL="postgresql://USUARIO:CONTRASENA@HOST:5432/NOMBRE_BD"
+
+Con `DATABASE_URL` definido, Django usa PostgreSQL automáticamente. Sin esa
+variable, continúa usando SQLite como respaldo local.
+
+Después de configurar una instancia PostgreSQL accesible, ejecutar desde
+`C:\Users\dmaya\Residencia\POS\BakcEnd`:
+
+  python manage.py check
+  python manage.py migrate
+  python manage.py test pos
+
+La migración definitiva de los datos existentes de SQLite no forma parte de
+esta validación temprana; primero se comprueba que el esquema y el código sean
+compatibles con PostgreSQL.
+
 
 4. CREAR O RESTABLECER USUARIOS DE PRUEBA
 
@@ -134,13 +154,13 @@ Para probar como administrador:
 
   Seleccionar: Administrador
   Usuario: admin
-  Contraseña: AdminTemporal2026!
+  Contraseña: 1234
 
 Para probar como cajero:
 
   Seleccionar: Cajero
   Usuario: cajero
-  Contraseña: CajeroTemporal2026!
+  Contraseña: 1234
 
 
 8. PRUEBAS RECOMENDADAS
