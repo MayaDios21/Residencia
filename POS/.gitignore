@@ -19,3 +19,5 @@ media/
 node_modules/
 dist/
 build/
+# Contexto local del proyecto (memoria entre sesiones, no se sube)
+CONTEXTO_PROYECTO.md
