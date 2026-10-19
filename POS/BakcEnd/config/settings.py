@@ -181,3 +181,10 @@ if DEBUG:
     ])
 
 CORS_ALLOWED_ORIGINS = list(dict.fromkeys(configured_cors_origins))
+
+if DEBUG:
+    # Permite probar la API desde el navegador (API navegable de DRF) usando la
+    # sesión de /admin/. El frontend sigue usando tokens; solo aplica en desarrollo.
+    REST_FRAMEWORK['DEFAULT_AUTHENTICATION_CLASSES'].append(
+        'rest_framework.authentication.SessionAuthentication',
+    )

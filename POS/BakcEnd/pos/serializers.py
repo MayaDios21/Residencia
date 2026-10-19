@@ -1,7 +1,18 @@
+from decimal import Decimal
+
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import Category, InventoryMovement, Product, UserProfile
+from .models import (
+    CashSession,
+    Category,
+    InventoryMovement,
+    Product,
+    Sale,
+    SaleItem,
+    SystemSettings,
+    UserProfile,
+)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -116,3 +127,135 @@ class InventoryMovementSerializer(serializers.ModelSerializer):
                 {'quantity': 'La cantidad debe ser mayor que cero.'}
             )
         return attrs
+
+
+class SystemSettingsSerializer(serializers.ModelSerializer):
+    tax_rate = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        min_value=Decimal('0'),
+        max_value=Decimal('1'),
+        help_text='Fracción: 0.08 equivale a 8 %.',
+    )
+    exchange_rate = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        min_value=Decimal('0.0001'),
+    )
+    updated_by = serializers.CharField(source='updated_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = SystemSettings
+        fields = ('tax_rate', 'exchange_rate', 'updated_by', 'updated_at')
+        read_only_fields = ('updated_at',)
+
+
+class CashSessionSerializer(serializers.ModelSerializer):
+    opened_by = serializers.CharField(source='opened_by.username', read_only=True)
+    closed_by = serializers.CharField(source='closed_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = CashSession
+        fields = (
+            'id',
+            'business_date',
+            'status',
+            'opening_amount',
+            'opened_by',
+            'opened_at',
+            'sales_count',
+            'sales_total',
+            'minor_expenses',
+            'expected_cash',
+            'counted_cash',
+            'difference',
+            'retained_fund',
+            'closed_by',
+            'closed_at',
+        )
+        read_only_fields = fields
+
+
+class OpenCashSessionSerializer(serializers.Serializer):
+    opening_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+    def validate_opening_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('El fondo inicial debe ser mayor que cero.')
+        return value
+
+
+class CloseCashSessionSerializer(serializers.Serializer):
+    counted_cash = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal('0'), required=False, allow_null=True,
+    )
+    minor_expenses = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal('0'), required=False, default=Decimal('0'),
+    )
+    retained_fund = serializers.DecimalField(
+        max_digits=10, decimal_places=2, min_value=Decimal('0'), required=False, allow_null=True,
+    )
+
+
+class SaleItemInputSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class SaleCreateSerializer(serializers.Serializer):
+    items = SaleItemInputSerializer(many=True, allow_empty=False)
+    payment = serializers.ChoiceField(
+        choices=Sale.PaymentMethod.choices,
+        default=Sale.PaymentMethod.CASH,
+    )
+
+
+class SaleItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(read_only=True)
+    stock_remaining = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SaleItem
+        fields = (
+            'product_id',
+            'product_name',
+            'unit_price',
+            'quantity',
+            'line_total',
+            'stock_remaining',
+        )
+
+    def get_stock_remaining(self, item):
+        if hasattr(item, 'stock_remaining'):
+            return item.stock_remaining
+        return item.product.stock if item.product else None
+
+
+class SaleSerializer(serializers.ModelSerializer):
+    cashier = serializers.CharField(source='cashier.username', read_only=True)
+    business_date = serializers.DateField(source='cash_session.business_date', read_only=True)
+    payment = serializers.CharField(source='payment_method', read_only=True)
+    items = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Sale
+        fields = (
+            'id',
+            'created_at',
+            'business_date',
+            'cashier',
+            'status',
+            'payment',
+            'tax_rate',
+            'exchange_rate',
+            'subtotal',
+            'tax',
+            'total',
+            'items',
+        )
+
+    def get_items(self, sale):
+        items = getattr(sale, 'created_items', None)
+        if items is None:
+            items = sale.items.select_related('product')
+        return SaleItemSerializer(items, many=True).data

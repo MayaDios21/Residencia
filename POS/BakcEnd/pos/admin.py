@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import Category, InventoryMovement, Product, UserProfile
+from .models import (
+    CashSession,
+    Category,
+    InventoryMovement,
+    Product,
+    Sale,
+    SaleItem,
+    SystemSettings,
+    UserProfile,
+)
 
 
 @admin.register(UserProfile)
@@ -21,6 +30,8 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'category', 'price', 'stock', 'minimum_stock', 'is_active')
     list_filter = ('is_active', 'category')
     search_fields = ('name',)
+    # El stock solo cambia con movimientos de inventario o ventas.
+    readonly_fields = ('stock',)
 
 
 @admin.register(InventoryMovement)
@@ -29,3 +40,76 @@ class InventoryMovementAdmin(admin.ModelAdmin):
     list_filter = ('type',)
     search_fields = ('product__name', 'reason')
     readonly_fields = ('stock_before', 'stock_after', 'created_at')
+
+    # Los movimientos se registran por la API para que actualicen el stock.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SystemSettings)
+class SystemSettingsAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'tax_rate', 'exchange_rate', 'updated_by', 'updated_at')
+    readonly_fields = ('updated_by', 'updated_at')
+
+    def has_add_permission(self, request):
+        return not SystemSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(CashSession)
+class CashSessionAdmin(admin.ModelAdmin):
+    list_display = (
+        'business_date', 'status', 'opening_amount', 'sales_count', 'sales_total',
+        'expected_cash', 'counted_cash', 'difference', 'opened_by', 'closed_by',
+    )
+    list_filter = ('status',)
+    date_hierarchy = 'business_date'
+
+    # La caja se abre y se cierra por la API, que calcula el cierre.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class SaleItemInline(admin.TabularInline):
+    model = SaleItem
+    extra = 0
+    can_delete = False
+    readonly_fields = ('product', 'product_name', 'unit_price', 'quantity', 'line_total')
+
+
+@admin.register(Sale)
+class SaleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'created_at', 'cashier', 'status', 'payment_method', 'subtotal', 'tax', 'total')
+    list_filter = ('status', 'cash_session__business_date')
+    search_fields = ('items__product_name',)
+    readonly_fields = (
+        'cash_session', 'cashier', 'created_at', 'tax_rate', 'exchange_rate',
+        'subtotal', 'tax', 'total',
+    )
+    inlines = (SaleItemInline,)
+
+    # Las ventas se registran por la API (calcula totales y descuenta stock)
+    # y no se borran; se cancelarán desde la API en la Fase 3.
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -182,18 +182,77 @@ Administrador:
   - Revisar productos, categorias, almacen y configuracion.
   - Cerrar sesion.
 
-Inventario en el backend (panel de Django):
+Backend desde el navegador (API navegable):
+
+  Mientras USE_API sea false en el archivo FronEnd\js\api.js, las pantallas
+  del sistema (Almacen, Caja, Venta, Configuracion) guardan solo en el
+  navegador. Para probar lo que se guarda en la base de datos se usa la
+  API navegable de Django, que solo funciona con DJANGO_DEBUG=True.
+
+  Preparacion:
 
   - Entrar a http://127.0.0.1:8000/admin/ con admin / 1234.
-  - En "Productos", crear o editar un producto y revisar las columnas
-    Stock y Minimum stock.
-  - En "Movimientos de inventario", registrar una entrada, una salida y un
-    ajuste, y revisar que el stock del producto cambie.
-  - Nota: mientras USE_API sea false en el archivo FronEnd\js\api.js, la pestaña
-    Almacen del sistema guarda los movimientos solo en el navegador; el
-    panel de Django muestra lo que esta guardado en la base de datos.
-  - En la pestaña Almacen, un "Ajuste de inventario" fija el stock al numero
-    escrito (no lo resta).
+  - En "Productos", crear un producto de prueba (nombre y precio). El
+    stock no se edita aqui: empieza "sin registrar".
+  - Sin cerrar esa pestaña, abrir las direcciones de abajo. Cada una
+    muestra los datos y, al final, un formulario. En los que piden JSON,
+    usar la pestaña "Raw data", pegar el texto y presionar POST o PATCH.
+
+  Inventario (Fase 1) - http://127.0.0.1:8000/api/inventario/movimientos/
+
+    {"product_id": 1, "type": "entrada", "quantity": 10, "reason": "Compra"}
+
+    Cambiar el 1 por el id del producto. Probar tambien "salida" y
+    "ajuste" (el ajuste fija el stock al numero indicado). Una salida
+    mayor al stock debe responder 409.
+
+  Configuracion (Fase 2) - http://127.0.0.1:8000/api/configuracion/
+
+    Ver IVA (tax_rate, 0.0800 = 8 %) y tipo de cambio. Para cambiarlos,
+    PATCH con, por ejemplo:
+
+    {"tax_rate": "0.16", "exchange_rate": "18.50"}
+
+    Valores fuera de rango (IVA mayor a 1 o tipo de cambio 0) responden 400.
+
+  Caja y ventas (Fase 2), en este orden:
+
+    1. http://127.0.0.1:8000/api/caja/actual/
+       Debe decir "status": "sin_abrir".
+    2. http://127.0.0.1:8000/api/ventas/
+       POST con lo de abajo: debe responder 409 porque la caja no esta abierta.
+
+       {"items": [{"product_id": 1, "quantity": 2}], "payment": "Efectivo"}
+
+    3. http://127.0.0.1:8000/api/caja/abrir/
+       Escribir el fondo inicial (por ejemplo 500) y presionar POST.
+    4. Repetir la venta del paso 2: ahora responde 201 con subtotal, IVA,
+       total calculados por el servidor y "stock_remaining" del producto.
+       Una venta con mas piezas que el stock debe responder 409.
+    5. http://127.0.0.1:8000/api/caja/actual/
+       Debe decir "abierta" y mostrar las ventas del dia.
+    6. http://127.0.0.1:8000/api/caja/cerrar/
+       POST (los campos son opcionales; si se dejan vacios el efectivo
+       contado se toma igual al esperado). Revisar expected_cash =
+       fondo inicial + ventas del dia - gastos menores.
+    7. Intentar otra venta o abrir otra caja: ambas deben responder 409.
+    8. http://127.0.0.1:8000/api/caja/cierres/ y
+       http://127.0.0.1:8000/api/caja/cierres/exportar/ (descarga un CSV).
+
+  En el panel /admin/ se pueden consultar Ventas, Jornadas de caja,
+  Movimientos de inventario y Configuracion. Ventas, cajas y movimientos
+  son de solo lectura: se registran por la API para que el stock y los
+  totales siempre se calculen bien.
+
+  IMPORTANTE: solo se permite una caja por dia. Si se cierra la caja de
+  hoy durante las pruebas, ya no se podra abrir otra hasta mañana. Para
+  reiniciar las pruebas en la base local (borra cajas, ventas y
+  movimientos, no productos ni usuarios), desde BakcEnd:
+
+    python manage.py shell -c "from pos.models import *; InventoryMovement.objects.all().delete(); SaleItem.objects.all().delete(); Sale.objects.all().delete(); CashSession.objects.all().delete(); Product.objects.update(stock=None)"
+
+  En la pestaña Almacen del sistema, un "Ajuste de inventario" fija el
+  stock al numero escrito (no lo resta).
 
 Cajero:
 
@@ -254,7 +313,8 @@ El resultado esperado es:
   OK
 
 Las pruebas estan en la carpeta BakcEnd\pos\tests\ (una por modulo:
-test_auth.py, test_catalog.py, test_inventory.py).
+test_auth.py, test_catalog.py, test_inventory.py, test_settings.py,
+test_cashbox.py, test_sales.py).
 
 
 IMPORTANTE
