@@ -226,16 +226,17 @@ class SaleItemSerializer(serializers.ModelSerializer):
         )
 
     def get_stock_remaining(self, item):
-        if hasattr(item, 'stock_remaining'):
-            return item.stock_remaining
-        return item.product.stock if item.product else None
+        # Solo tiene sentido en la respuesta de una venta recién registrada.
+        return getattr(item, 'stock_remaining', None)
 
 
 class SaleSerializer(serializers.ModelSerializer):
     cashier = serializers.CharField(source='cashier.username', read_only=True)
     business_date = serializers.DateField(source='cash_session.business_date', read_only=True)
     payment = serializers.CharField(source='payment_method', read_only=True)
+    items_count = serializers.SerializerMethodField()
     items = serializers.SerializerMethodField()
+    cancelled_by = serializers.CharField(source='cancelled_by.username', read_only=True, default=None)
 
     class Meta:
         model = Sale
@@ -251,11 +252,23 @@ class SaleSerializer(serializers.ModelSerializer):
             'subtotal',
             'tax',
             'total',
+            'items_count',
             'items',
+            'cancelled_by',
+            'cancelled_at',
+            'cancel_reason',
         )
 
-    def get_items(self, sale):
+    def _items(self, sale):
         items = getattr(sale, 'created_items', None)
-        if items is None:
-            items = sale.items.select_related('product')
-        return SaleItemSerializer(items, many=True).data
+        return items if items is not None else list(sale.items.all())
+
+    def get_items_count(self, sale):
+        return sum(item.quantity for item in self._items(sale))
+
+    def get_items(self, sale):
+        return SaleItemSerializer(self._items(sale), many=True).data
+
+
+class CancelSaleSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')

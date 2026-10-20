@@ -239,6 +239,51 @@ Backend desde el navegador (API navegable):
     8. http://127.0.0.1:8000/api/caja/cierres/ y
        http://127.0.0.1:8000/api/caja/cierres/exportar/ (descarga un CSV).
 
+  Historial de ventas (Fase 3):
+
+    Hacer estas pruebas con la caja ABIERTA (entre los pasos 4 y 6 de
+    arriba), porque una venta solo se puede cancelar mientras su jornada
+    sigue abierta. Registrar antes 2 o 3 ventas.
+
+    1. http://127.0.0.1:8000/api/ventas/
+       Lista las ventas, la mas reciente primero, con sus productos,
+       "items_count" (articulos) y estado.
+    2. Filtros (se agregan al final de la direccion):
+         ?desde=2026-10-20&hasta=2026-10-20   rango de fechas (AAAA-MM-DD)
+         ?q=taco                              busca por producto
+         ?q=3                                 busca la venta #3
+         ?estado=cancelada                    abierta, cerrada o cancelada
+       Una fecha mal escrita responde 400.
+    3. http://127.0.0.1:8000/api/ventas/1/
+       Detalle de una venta (cambiar el 1 por el numero de venta).
+    4. http://127.0.0.1:8000/api/ventas/resumen/
+       Total vendido, transacciones, articulos y promedio (las tarjetas
+       del historial). Acepta los mismos filtros. No cuenta canceladas.
+    5. http://127.0.0.1:8000/api/ventas/exportar/
+       Descarga ventas.csv (acepta los mismos filtros).
+    6. http://127.0.0.1:8000/api/ventas/verificar/
+       Revisa que los montos de cada venta cuadren. Debe decir
+       "with_errors": 0.
+    7. http://127.0.0.1:8000/api/ventas/1/cancelar/
+       POST con un motivo opcional, por ejemplo:
+
+         {"reason": "Error de captura"}
+
+       La venta queda "cancelada", el stock del producto regresa (revisar
+       en /api/inventario/movimientos/ un movimiento "cancelacion") y deja
+       de contar en el resumen y en el cierre de caja. Cancelarla otra vez,
+       o cancelar una venta de una jornada ya cerrada, responde 409.
+    8. Entrar como cajero: el cajero solo ve las ventas de hoy y no puede
+       verificar ni cancelar (responde 403). Para cambiar de usuario, cerrar
+       sesion en /admin/ y entrar con cajero; si cajero no tiene acceso al
+       panel, darselo con:
+
+         python manage.py shell -c "from django.contrib.auth.models import User; User.objects.filter(username='cajero').update(is_staff=True)"
+
+    Las ventas ya no se borran: el boton "Borrar historial" del sistema
+    solo limpia el navegador mientras USE_API sea false. En la base de datos
+    las ventas se cancelan, para que quede registro.
+
   En el panel /admin/ se pueden consultar Ventas, Jornadas de caja,
   Movimientos de inventario y Configuracion. Ventas, cajas y movimientos
   son de solo lectura: se registran por la API para que el stock y los
@@ -314,7 +359,7 @@ El resultado esperado es:
 
 Las pruebas estan en la carpeta BakcEnd\pos\tests\ (una por modulo:
 test_auth.py, test_catalog.py, test_inventory.py, test_settings.py,
-test_cashbox.py, test_sales.py).
+test_cashbox.py, test_sales.py, test_sales_history.py).
 
 
 IMPORTANTE

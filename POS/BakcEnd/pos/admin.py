@@ -97,7 +97,7 @@ class SaleItemInline(admin.TabularInline):
 
 @admin.register(Sale)
 class SaleAdmin(admin.ModelAdmin):
-    list_display = ('id', 'created_at', 'cashier', 'status', 'payment_method', 'subtotal', 'tax', 'total')
+    list_display = ('id', 'created_at', 'cashier', 'status', 'subtotal', 'tax', 'total', 'cancelled_by')
     list_filter = ('status', 'cash_session__business_date')
     search_fields = ('items__product_name',)
     readonly_fields = (
@@ -106,9 +106,12 @@ class SaleAdmin(admin.ModelAdmin):
     )
     inlines = (SaleItemInline,)
 
-    # Las ventas se registran por la API (calcula totales y descuenta stock)
-    # y no se borran; se cancelarán desde la API en la Fase 3.
+    # Las ventas se registran y se cancelan por la API (calcula totales y
+    # mueve el stock); en el panel solo se consultan.
     def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
         return False
 
     def has_delete_permission(self, request, obj=None):

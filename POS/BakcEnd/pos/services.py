@@ -47,10 +47,11 @@ def calculate_new_stock(movement_type, current_stock, quantity):
     """Devuelve el stock resultante de aplicar un movimiento.
 
     Un producto sin stock registrado (None) se trata como 0 para entradas y
-    ajustes; un ajuste fija el stock al valor indicado.
+    ajustes; un ajuste fija el stock al valor indicado y una cancelación de
+    venta regresa al stock lo que se había vendido.
     """
     current = current_stock or 0
-    if movement_type == InventoryMovement.Type.ENTRY:
+    if movement_type in (InventoryMovement.Type.ENTRY, InventoryMovement.Type.CANCELLATION):
         return current + quantity
     if movement_type == InventoryMovement.Type.ADJUSTMENT:
         return quantity
@@ -269,3 +270,85 @@ def create_sale(items, user, payment_method=Sale.PaymentMethod.CASH):
         sale.created_items.append(item)
 
     return sale
+
+
+@transaction.atomic
+def cancel_sale(sale_id, user, reason=''):
+    """Cancela una venta de la jornada abierta y regresa al stock lo vendido.
+
+    Solo se revierten los movimientos que generó la venta, así que los productos
+    que no controlaban existencias al momento de vender no se tocan.
+    """
+    sale = (
+        Sale.objects
+        .select_for_update()
+        .select_related('cash_session')
+        .get(pk=sale_id)
+    )
+    if sale.status == Sale.Status.CANCELLED:
+        raise CashSessionError('La venta ya estaba cancelada.')
+    if sale.cash_session.status == CashSession.Status.CLOSED:
+        raise CashSessionError(
+            'La jornada de esta venta ya fue cerrada; no se puede cancelar.'
+        )
+
+    for movement in sale.inventory_movements.filter(type=InventoryMovement.Type.SALE):
+        apply_stock_movement(
+            movement.product_id,
+            InventoryMovement.Type.CANCELLATION,
+            movement.quantity,
+            user,
+            reason=f'Cancelación de venta #{sale.pk}',
+            sale=sale,
+        )
+
+    sale.status = Sale.Status.CANCELLED
+    sale.cancelled_by = user
+    sale.cancelled_at = timezone.now()
+    sale.cancel_reason = reason
+    sale.save(update_fields=['status', 'cancelled_by', 'cancelled_at', 'cancel_reason'])
+    return sale
+
+
+def find_sale_problems(sale):
+    """Devuelve la lista de inconsistencias de montos o estado de una venta."""
+    problems = []
+    items = list(sale.items.all())
+    if not items:
+        problems.append('La venta no tiene productos.')
+
+    for item in items:
+        if to_money(item.unit_price * item.quantity) != item.line_total:
+            problems.append(
+                f'La partida de {item.product_name} no cuadra: '
+                f'{item.quantity} × {item.unit_price} ≠ {item.line_total}.'
+            )
+
+    items_sum = to_money(sum((item.line_total for item in items), Decimal('0')))
+    if items_sum != sale.subtotal:
+        problems.append(f'La suma de las partidas ({items_sum}) no es igual al subtotal ({sale.subtotal}).')
+    if to_money(sale.subtotal * sale.tax_rate) != sale.tax:
+        problems.append(f'El IVA ({sale.tax}) no corresponde al {sale.tax_rate * 100:.2f} % del subtotal.')
+    if sale.subtotal + sale.tax != sale.total:
+        problems.append(f'Subtotal + IVA ({sale.subtotal + sale.tax}) no es igual al total ({sale.total}).')
+    if sale.status == Sale.Status.OPEN and sale.cash_session.status == CashSession.Status.CLOSED:
+        problems.append('La venta sigue abierta aunque su jornada ya se cerró.')
+    return problems
+
+
+def verify_sales(queryset):
+    """Revisa un conjunto de ventas y resume cuáles tienen inconsistencias."""
+    sales = queryset.select_related('cash_session').prefetch_related('items')
+    errors = []
+    checked = 0
+    for sale in sales:
+        checked += 1
+        problems = find_sale_problems(sale)
+        if problems:
+            errors.append({'sale_id': sale.pk, 'problems': problems})
+    return {
+        'checked': checked,
+        'valid': checked - len(errors),
+        'with_errors': len(errors),
+        'errors': errors,
+    }

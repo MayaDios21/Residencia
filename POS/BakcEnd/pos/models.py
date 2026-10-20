@@ -80,6 +80,7 @@ class InventoryMovement(models.Model):
         EXIT = 'salida', 'Salida o pérdida'
         ADJUSTMENT = 'ajuste', 'Ajuste de inventario'
         SALE = 'venta', 'Venta'
+        CANCELLATION = 'cancelacion', 'Cancelación de venta'
 
     product = models.ForeignKey(
         Product,
@@ -220,6 +221,16 @@ class Sale(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     tax = models.DecimalField(max_digits=12, decimal_places=2)
     total = models.DecimalField(max_digits=12, decimal_places=2)
+    # Datos de la cancelación: las ventas no se borran, se cancelan.
+    cancelled_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='+',
+        null=True,
+        blank=True,
+    )
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=255, blank=True, default='')
 
     class Meta:
         ordering = ('-created_at', '-id')
