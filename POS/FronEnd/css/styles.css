@@ -1646,11 +1646,32 @@ input[type="checkbox"] {
 }
 
 /* ---------- Almacén ---------- */
-.warehouse-layout {
+.warehouse-layout,
+.users-layout {
     display: grid;
     grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
     align-items: start;
     gap: 16px;
+}
+
+/* ---------- Usuarios ---------- */
+.users-forms {
+    display: grid;
+    gap: 16px;
+}
+
+.table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.row-inactive td {
+    color: var(--muted);
+}
+
+.users-note {
+    margin: 12px 0 0;
 }
 
 /* ---------- Ventas ---------- */
@@ -2169,6 +2190,7 @@ input[type="checkbox"] {
 @media (max-width: 1023px) {
     .admin-section,
     .warehouse-layout,
+    .users-layout,
     .dashboard-columns {
         grid-template-columns: minmax(0, 1fr);
     }

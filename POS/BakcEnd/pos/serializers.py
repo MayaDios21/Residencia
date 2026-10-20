@@ -1,6 +1,8 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import (
@@ -272,3 +274,72 @@ class SaleSerializer(serializers.ModelSerializer):
 
 class CancelSaleSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
+
+
+class ManagedUserSerializer(serializers.ModelSerializer):
+    """Usuario visto desde la gestión de usuarios del administrador."""
+
+    role = serializers.ChoiceField(source='profile.role', choices=UserProfile.Role.choices)
+    role_display = serializers.CharField(source='profile.get_role_display', read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'role',
+            'role_display',
+            'is_active',
+            'last_login',
+            'date_joined',
+        )
+        read_only_fields = ('username', 'last_login', 'date_joined')
+
+
+class UserCreateSerializer(serializers.Serializer):
+    username = serializers.RegexField(
+        r'^[\w.@+-]+$',
+        max_length=150,
+        error_messages={'invalid': 'Usa solo letras, números y los símbolos . @ + - _'},
+    )
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default='')
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default='')
+    role = serializers.ChoiceField(choices=UserProfile.Role.choices)
+    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError('Ya existe un usuario con ese nombre.')
+        return value
+
+    def validate(self, attrs):
+        candidate = User(
+            username=attrs['username'],
+            first_name=attrs.get('first_name', ''),
+            last_name=attrs.get('last_name', ''),
+        )
+        try:
+            validate_password(attrs['password'], user=candidate)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({'password': list(error.messages)}) from error
+        return attrs
+
+
+class UserUpdateSerializer(serializers.Serializer):
+    first_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    role = serializers.ChoiceField(choices=UserProfile.Role.choices, required=False)
+    is_active = serializers.BooleanField(required=False)
+
+
+class PasswordResetSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, style={'input_type': 'password'})
+
+    def validate_password(self, value):
+        try:
+            validate_password(value, user=self.context.get('user'))
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(list(error.messages)) from error
+        return value

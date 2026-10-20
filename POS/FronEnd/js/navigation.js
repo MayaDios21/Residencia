@@ -4,7 +4,7 @@
  * cajero abrir la jornada antes de vender. También muestra la fecha del día.
  */
 
-const ADMIN_TABS = ['admin-dashboard', 'admin', 'warehouse', 'categories', 'settings'];
+const ADMIN_TABS = ['admin-dashboard', 'admin', 'warehouse', 'categories', 'settings', 'users'];
 
 function updateBusinessDate() {
     const dateElement = document.getElementById('current-business-date');
@@ -75,5 +75,7 @@ function showTab(tabName) {
         displayTaxRate();
     } else if (tabName === 'admin-dashboard') {
         renderAdminDashboard();
+    } else if (tabName === 'users') {
+        loadUsers();
     }
 }

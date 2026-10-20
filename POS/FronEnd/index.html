@@ -116,6 +116,9 @@
             <button class="tab" type="button" data-tab="settings" onclick="showTab('settings')" hidden>
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configuración
             </button>
+            <button class="tab" type="button" data-tab="users" onclick="showTab('users')" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg>Usuarios
+            </button>
         </nav>
 
         <main class="app-content">
@@ -250,6 +253,108 @@
                         <h3>Mantenimiento</h3>
                         <p class="field-help">Elimina todos los datos guardados en este dispositivo y vuelve a cargar el menú por defecto. Úsalo solo si hay problemas.</p>
                         <button class="btn btn-danger" type="button" onclick="resetSystem()">Reiniciar sistema</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Usuarios (solo administrador): alta, rol, activación y contraseñas. Usa siempre la API. -->
+            <section id="users-tab" class="tab-content" aria-labelledby="users-title">
+                <div class="page-heading">
+                    <div>
+                        <span class="eyebrow">Administración</span>
+                        <h2 id="users-title">Usuarios</h2>
+                    </div>
+                    <div class="toolbar">
+                        <label class="check-field">
+                            <input type="checkbox" id="users-show-inactive" onchange="renderUsers()">
+                            Mostrar inactivos
+                        </label>
+                        <button class="btn btn-secondary btn-compact" type="button" onclick="loadUsers()">Actualizar</button>
+                    </div>
+                </div>
+
+                <div class="users-layout">
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <h3>Cuentas del sistema</h3>
+                            <span id="users-count">0 activos</span>
+                        </div>
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Usuario</th>
+                                        <th scope="col">Nombre</th>
+                                        <th scope="col">Rol</th>
+                                        <th scope="col">Estado</th>
+                                        <th scope="col">Último acceso</th>
+                                        <th scope="col">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-list"></tbody>
+                            </table>
+                        </div>
+                        <p class="field-help users-note">Los usuarios no se borran: se desactivan para conservar quién hizo cada venta y cierre. Debe quedar siempre al menos un administrador activo.</p>
+                    </div>
+
+                    <div class="users-forms">
+                        <div class="panel panel-accent">
+                            <span class="eyebrow">Nueva cuenta</span>
+                            <h3>Agregar usuario</h3>
+                            <form id="user-create-form" onsubmit="createUser(event)">
+                                <div class="form-group">
+                                    <label for="user-username">Usuario</label>
+                                    <input type="text" id="user-username" required maxlength="150" pattern="[A-Za-z0-9.@+_\-]+" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Ej.: maria">
+                                    <small class="field-help">Sin espacios. Es el nombre para iniciar sesión.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-first-name">Nombre</label>
+                                    <input type="text" id="user-first-name" maxlength="150" autocomplete="off">
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-last-name">Apellido</label>
+                                    <input type="text" id="user-last-name" maxlength="150" autocomplete="off">
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-role">Rol</label>
+                                    <select id="user-role" required>
+                                        <option value="cashier">Cajero</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-password">Contraseña</label>
+                                    <input type="password" id="user-password" required minlength="8" autocomplete="new-password">
+                                    <small class="field-help">Mínimo 8 caracteres; no puede ser solo números ni una contraseña común.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="user-password-confirm">Confirmar contraseña</label>
+                                    <input type="password" id="user-password-confirm" required minlength="8" autocomplete="new-password">
+                                </div>
+                                <button type="submit" class="btn btn-block">Crear usuario</button>
+                            </form>
+                        </div>
+
+                        <div class="panel">
+                            <span class="eyebrow">Acceso</span>
+                            <h3>Restablecer contraseña</h3>
+                            <p class="field-help">El usuario deberá iniciar sesión de nuevo con la contraseña nueva.</p>
+                            <form id="reset-password-form" onsubmit="resetUserPassword(event)">
+                                <div class="form-group">
+                                    <label for="reset-password-user">Usuario</label>
+                                    <select id="reset-password-user" required></select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="reset-password">Contraseña nueva</label>
+                                    <input type="password" id="reset-password" required minlength="8" autocomplete="new-password">
+                                </div>
+                                <div class="form-group">
+                                    <label for="reset-password-confirm">Confirmar contraseña</label>
+                                    <input type="password" id="reset-password-confirm" required minlength="8" autocomplete="new-password">
+                                </div>
+                                <button type="submit" class="btn btn-secondary btn-block">Cambiar contraseña</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -646,6 +751,7 @@
     <script src="js/cashbox.js"></script>
     <script src="js/warehouse.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/users.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

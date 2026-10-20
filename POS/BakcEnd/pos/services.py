@@ -1,8 +1,10 @@
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
+from rest_framework.authtoken.models import Token
 
 from .models import (
     CashSession,
@@ -11,6 +13,7 @@ from .models import (
     Sale,
     SaleItem,
     SystemSettings,
+    UserProfile,
 )
 
 CENTS = Decimal('0.01')
@@ -37,6 +40,10 @@ class CashSessionError(Exception):
 
 class SaleValidationError(Exception):
     """Datos de la venta inválidos (producto inexistente o inactivo)."""
+
+
+class UserManagementError(Exception):
+    """Cambio de usuario que dejaría el sistema en un estado no permitido."""
 
 
 # ---------------------------------------------------------------------------
@@ -352,3 +359,76 @@ def verify_sales(queryset):
         'with_errors': len(errors),
         'errors': errors,
     }
+
+
+# ---------------------------------------------------------------------------
+# Usuarios
+# ---------------------------------------------------------------------------
+
+def count_other_active_admins(user):
+    return (
+        User.objects
+        .filter(is_active=True, profile__role=UserProfile.Role.ADMIN)
+        .exclude(pk=user.pk)
+        .count()
+    )
+
+
+@transaction.atomic
+def create_user_with_role(username, password, role, first_name='', last_name=''):
+    user = User.objects.create_user(
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+    )
+    UserProfile.objects.create(user=user, role=role)
+    return user
+
+
+@transaction.atomic
+def update_user(user, acting_user, **changes):
+    """Actualiza nombre, rol o estado de un usuario respetando las reglas:
+
+    - nadie puede desactivarse ni quitarse el rol de administrador a sí mismo;
+    - siempre debe quedar al menos un administrador activo;
+    - al desactivar a alguien se cierran sus sesiones (se borra su token).
+    """
+    user = User.objects.select_for_update().select_related('profile').get(pk=user.pk)
+    new_role = changes.get('role', user.profile.role)
+    new_active = changes.get('is_active', user.is_active)
+    loses_admin = (
+        user.is_active and user.profile.role == UserProfile.Role.ADMIN
+        and (not new_active or new_role != UserProfile.Role.ADMIN)
+    )
+
+    if user.pk == acting_user.pk and loses_admin:
+        raise UserManagementError(
+            'No puedes desactivarte ni quitarte el rol de administrador a ti mismo.'
+        )
+    if loses_admin and count_other_active_admins(user) == 0:
+        raise UserManagementError('Debe quedar al menos un administrador activo.')
+
+    for field in ('first_name', 'last_name'):
+        if field in changes:
+            setattr(user, field, changes[field])
+    user.is_active = new_active
+    user.save()
+
+    if new_role != user.profile.role:
+        user.profile.role = new_role
+        user.profile.save(update_fields=['role'])
+        # El rol viaja en la sesión del frontend; se obliga a iniciar sesión de nuevo.
+        Token.objects.filter(user=user).delete()
+    if not new_active:
+        Token.objects.filter(user=user).delete()
+    return user
+
+
+@transaction.atomic
+def reset_user_password(user, password):
+    """Cambia la contraseña y cierra las sesiones abiertas del usuario."""
+    user.set_password(password)
+    user.save(update_fields=['password'])
+    Token.objects.filter(user=user).delete()
+    return user

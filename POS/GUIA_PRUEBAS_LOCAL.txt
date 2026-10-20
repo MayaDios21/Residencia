@@ -284,6 +284,40 @@ Backend desde el navegador (API navegable):
     solo limpia el navegador mientras USE_API sea false. En la base de datos
     las ventas se cancelan, para que quede registro.
 
+  Usuarios (Fase 4) - en el sistema, no en la API navegable:
+
+    Esta pantalla SI usa el backend aunque USE_API sea false, porque los
+    usuarios solo existen en la base de datos (igual que el inicio de sesion).
+
+    1. Abrir http://127.0.0.1:8080/FronEnd/index.html y entrar como
+       Administrador (admin / 1234). Debe aparecer la pestaña "Usuarios".
+    2. Agregar usuario: llenar el formulario con rol Cajero. Probar primero
+       la contraseña 1234: debe rechazarla (minimo 8 caracteres, no solo
+       numeros, no comun). Luego usar una como Birria-Compita-2026.
+    3. Cerrar sesion y entrar con el usuario nuevo como Cajero: debe
+       funcionar y NO debe ver la pestaña Usuarios.
+    4. Volver como admin y probar en la tabla:
+         - "Hacer administrador" / "Hacer cajero": cambia el rol y obliga a
+           ese usuario a iniciar sesion de nuevo.
+         - "Desactivar": ya no puede iniciar sesion. Con "Mostrar inactivos"
+           se ve en la lista y se puede "Activar" otra vez.
+         - En la fila propia (tú) los botones estan deshabilitados: nadie
+           puede desactivarse ni quitarse el rol de administrador.
+    5. Restablecer contraseña: elegir el usuario y escribir la nueva dos
+       veces. Si se elige la propia cuenta, el sistema cierra la sesion para
+       entrar con la nueva.
+    6. Los usuarios no se borran. Para borrar los de prueba en la base local,
+       desde BakcEnd (cambiar "nombre" por el usuario):
+
+         python manage.py shell -c "from django.contrib.auth.models import User; User.objects.filter(username='nombre').delete()"
+
+       Si ese usuario ya registro ventas, cajas o movimientos, Django no lo
+       deja borrar; en ese caso solo desactivarlo.
+
+    Nota: admin y cajero usan 1234 porque se crearon con los comandos de la
+    seccion 4; las reglas de contraseña solo aplican a cuentas creadas o
+    cambiadas desde el sistema.
+
   En el panel /admin/ se pueden consultar Ventas, Jornadas de caja,
   Movimientos de inventario y Configuracion. Ventas, cajas y movimientos
   son de solo lectura: se registran por la API para que el stock y los
@@ -359,7 +393,7 @@ El resultado esperado es:
 
 Las pruebas estan en la carpeta BakcEnd\pos\tests\ (una por modulo:
 test_auth.py, test_catalog.py, test_inventory.py, test_settings.py,
-test_cashbox.py, test_sales.py, test_sales_history.py).
+test_cashbox.py, test_sales.py, test_sales_history.py, test_users.py).
 
 
 IMPORTANTE

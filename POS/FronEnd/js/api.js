@@ -2,6 +2,14 @@ const API_URL = window.POS_API_URL || 'http://127.0.0.1:8000/api';
 const USE_API = false;
 const AUTH_TOKEN_KEY = 'pos_auth_token';
 
+/** Devuelve el primer mensaje de validación de DRF ({campo: ["mensaje"]}). */
+function getFirstFieldError(data) {
+    if (!data || typeof data !== 'object') return '';
+    const firstValue = Object.values(data)[0];
+    if (Array.isArray(firstValue)) return String(firstValue[0] || '');
+    return typeof firstValue === 'string' ? firstValue : '';
+}
+
 async function apiRequest(path, options = {}) {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
     const response = await fetch(`${API_URL}${path}`, {
@@ -21,7 +29,8 @@ async function apiRequest(path, options = {}) {
     }
 
     if (!response.ok) {
-        const message = data?.detail || data?.message || 'Error de comunicación con el servidor';
+        const message = data?.detail || data?.message || getFirstFieldError(data)
+            || 'Error de comunicación con el servidor';
         const requestError = new Error(message);
         requestError.status = response.status;
         throw requestError;
@@ -73,5 +82,32 @@ async function createSaleInApi(sale) {
     return apiRequest('/ventas/', {
         method: 'POST',
         body: JSON.stringify(sale)
+    });
+}
+
+// Gestión de usuarios (solo administrador). Siempre usa la API, sin importar
+// USE_API, porque los usuarios solo existen en el backend.
+async function getUsersFromApi() {
+    return apiRequest('/usuarios/');
+}
+
+async function createUserInApi(user) {
+    return apiRequest('/usuarios/', {
+        method: 'POST',
+        body: JSON.stringify(user)
+    });
+}
+
+async function updateUserInApi(userId, changes) {
+    return apiRequest(`/usuarios/${userId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes)
+    });
+}
+
+async function resetUserPasswordInApi(userId, password) {
+    return apiRequest(`/usuarios/${userId}/restablecer-contrasena/`, {
+        method: 'POST',
+        body: JSON.stringify({ password })
     });
 }
