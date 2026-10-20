@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib.auth import authenticate
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -6,14 +8,40 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import UserProfile
 from .serializers import LoginSerializer, UserSerializer
 
 
+# Un mismo mensaje para todos los fallos, para no revelar si el usuario existe
+# o si la contraseña era correcta.
+INVALID_LOGIN_MESSAGE = 'Usuario, contraseña o tipo de cuenta incorrectos.'
+
+
+def get_failed_login_key(request):
+    return f"login-failures:{request.META.get('REMOTE_ADDR', '')}"
+
+
+def register_failed_login(request):
+    key = get_failed_login_key(request)
+    # La ventana empieza con el primer fallo y no se reinicia con los siguientes.
+    cache.add(key, 0, timeout=settings.LOGIN_FAILURE_WINDOW_SECONDS)
+    try:
+        cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=settings.LOGIN_FAILURE_WINDOW_SECONDS)
+
+
 class LoginView(ObtainAuthToken):
+    """Inicio de sesión por rol, con límite de intentos fallidos por dirección IP."""
+
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
+        if cache.get(get_failed_login_key(request), 0) >= settings.LOGIN_MAX_FAILED_ATTEMPTS:
+            return Response(
+                {'detail': 'Demasiados intentos fallidos. Espera un minuto e intenta de nuevo.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -21,24 +49,12 @@ class LoginView(ObtainAuthToken):
             username=serializer.validated_data['username'],
             password=serializer.validated_data['password'],
         )
-        if user is None:
+        profile = getattr(user, 'profile', None) if user else None
+        if profile is None or profile.role != serializer.validated_data['role']:
+            register_failed_login(request)
             return Response(
-                {'detail': 'Usuario o contraseña incorrectos.'},
+                {'detail': INVALID_LOGIN_MESSAGE},
                 status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            profile = user.profile
-        except UserProfile.DoesNotExist:
-            return Response(
-                {'detail': 'El usuario no tiene un rol configurado.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        if profile.role != serializer.validated_data['role']:
-            return Response(
-                {'detail': 'El tipo de cuenta no corresponde con el usuario.'},
-                status=status.HTTP_403_FORBIDDEN,
             )
 
         token, _ = Token.objects.get_or_create(user=user)

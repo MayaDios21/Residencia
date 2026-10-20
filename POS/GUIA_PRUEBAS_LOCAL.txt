@@ -121,6 +121,10 @@ Ejecutar:
   $env:DJANGO_DEBUG="True"
   python manage.py runserver 127.0.0.1:8000
 
+DJANGO_DEBUG="True" es necesario en desarrollo: por seguridad, si no se
+define, Django arranca en modo produccion (sin paginas de error detalladas,
+sin estilos en /admin/ y sin la API navegable).
+
 La terminal debe mostrar:
 
   Starting development server at http://127.0.0.1:8000/
@@ -370,7 +374,16 @@ No aparecen las imagenes:
 Credenciales incorrectas:
 
   - Ejecutar nuevamente los comandos de la seccion 4.
-  - Confirmar que se selecciono el rol correcto.
+  - Confirmar que se selecciono el rol correcto. Por seguridad, el mensaje
+    es el mismo si falla el usuario, la contraseña o el tipo de cuenta.
+
+"Demasiados intentos fallidos. Espera un minuto":
+
+  - Tras 5 intentos fallidos en un minuto desde la misma computadora, el
+    inicio de sesion se bloquea un minuto (protege contra quien intenta
+    adivinar contraseñas). Esperar un minuto, o reiniciar el backend
+    (Ctrl+C y volver a ejecutar runserver) para limpiar el contador.
+  - Los inicios de sesion correctos no cuentan para el limite.
 
 El puerto ya esta ocupado:
 

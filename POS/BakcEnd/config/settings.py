@@ -26,7 +26,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() == 'true'
+# Apagado por defecto: en desarrollo se enciende con DJANGO_DEBUG=True.
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -150,6 +151,10 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# Inicio de sesión: intentos fallidos permitidos por dirección IP en la ventana.
+LOGIN_MAX_FAILED_ATTEMPTS = 5
+LOGIN_FAILURE_WINDOW_SECONDS = 60
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

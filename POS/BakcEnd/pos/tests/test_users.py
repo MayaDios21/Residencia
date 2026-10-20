@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
@@ -13,6 +14,7 @@ STRONG_PASSWORD = 'Birria-Compita-2026'
 
 class UserManagementTests(APITestCase):
     def setUp(self):
+        cache.clear()  # Reinicia el contador de intentos fallidos del login.
         self.admin = create_admin()
         self.cashier = create_cashier()
         self.client.force_authenticate(self.admin)

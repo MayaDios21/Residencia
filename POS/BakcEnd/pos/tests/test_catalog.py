@@ -1,12 +1,15 @@
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from ..models import Category, Product, UserProfile
+from ..services import apply_stock_movement
 
 
 class CatalogApiTests(APITestCase):
     def setUp(self):
+        cache.clear()  # Reinicia el contador de intentos fallidos del login.
         self.admin = User.objects.create_user(
             username='admin',
             password='correct-password',
@@ -139,3 +142,23 @@ class CatalogApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         product.refresh_from_db()
         self.assertIsNone(product.category)
+
+    def test_admin_can_delete_product_without_history(self):
+        product = Product.objects.create(name='Producto nuevo', price='10.00')
+        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+
+        response = self.client.delete(f'/api/productos/{product.id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Product.objects.filter(pk=product.pk).exists())
+
+    def test_product_with_inventory_history_cannot_be_deleted(self):
+        product = Product.objects.create(name='Quesabirria', price='45.00')
+        apply_stock_movement(product.id, 'entrada', 5, self.admin)
+        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+
+        response = self.client.delete(f'/api/productos/{product.id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn('desactívalo', response.data['detail'])
+        self.assertTrue(Product.objects.filter(pk=product.pk).exists())

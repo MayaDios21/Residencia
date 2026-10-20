@@ -1,4 +1,6 @@
 from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
@@ -6,10 +8,12 @@ from rest_framework.test import APITestCase
 
 from ..models import UserProfile
 from ..permissions import IsAdminRole, IsCashierRole
+from ..views import INVALID_LOGIN_MESSAGE
 
 
 class AuthenticationTests(APITestCase):
     def setUp(self):
+        cache.clear()  # Reinicia el contador de intentos fallidos del login.
         self.user = User.objects.create_user(
             username='cashier',
             password='correct-password',
@@ -37,7 +41,10 @@ class AuthenticationTests(APITestCase):
             'role': UserProfile.Role.ADMIN,
         })
 
-        self.assertEqual(response.status_code, 403)
+        # Mismo mensaje que una contraseña incorrecta: no confirma que acertó.
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'], INVALID_LOGIN_MESSAGE)
+        self.assertNotIn('token', response.data)
 
     def test_login_rejects_invalid_password(self):
         response = self.client.post('/api/auth/login/', {
@@ -47,6 +54,7 @@ class AuthenticationTests(APITestCase):
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'], INVALID_LOGIN_MESSAGE)
         self.assertNotIn('token', response.data)
 
     def test_login_rejects_user_without_profile(self):
@@ -61,7 +69,49 @@ class AuthenticationTests(APITestCase):
             'role': UserProfile.Role.CASHIER,
         })
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'], INVALID_LOGIN_MESSAGE)
+
+    def failed_login(self):
+        return self.client.post('/api/auth/login/', {
+            'username': 'cashier',
+            'password': 'wrong-password',
+            'role': UserProfile.Role.CASHIER,
+        })
+
+    @override_settings(LOGIN_MAX_FAILED_ATTEMPTS=3)
+    def test_login_is_blocked_after_too_many_failures(self):
+        for _ in range(3):
+            self.assertEqual(self.failed_login().status_code, status.HTTP_400_BAD_REQUEST)
+
+        blocked = self.failed_login()
+        # Ni siquiera la contraseña correcta entra mientras dura el bloqueo.
+        correct = self.client.post('/api/auth/login/', {
+            'username': 'cashier',
+            'password': 'correct-password',
+            'role': UserProfile.Role.CASHIER,
+        })
+
+        self.assertEqual(blocked.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(correct.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+    @override_settings(LOGIN_MAX_FAILED_ATTEMPTS=3)
+    def test_successful_logins_do_not_count_as_failures(self):
+        for _ in range(5):
+            response = self.client.post('/api/auth/login/', {
+                'username': 'cashier',
+                'password': 'correct-password',
+                'role': UserProfile.Role.CASHIER,
+            })
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    @override_settings(LOGIN_MAX_FAILED_ATTEMPTS=3)
+    def test_block_expires_after_window(self):
+        for _ in range(3):
+            self.failed_login()
+        cache.clear()  # Equivale a que pase la ventana de un minuto.
+
+        self.assertEqual(self.failed_login().status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_authenticated_user_can_read_me(self):
         token = self.client.post('/api/auth/login/', {

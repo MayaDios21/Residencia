@@ -50,7 +50,7 @@ function loadSalesHistoryTab() {
         let productsHTML = '';
         if (sale.products && sale.products.length > 0) {
             productsHTML = sale.products.map(p => 
-                `${p.quantity}x ${p.name} ($${p.price.toFixed(2)})`
+                `${p.quantity}x ${escapeHtml(p.name)} ($${p.price.toFixed(2)})`
             ).join(', ');
         }
         
