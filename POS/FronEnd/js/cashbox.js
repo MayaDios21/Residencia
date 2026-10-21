@@ -155,7 +155,7 @@ function saveCashBoxRecord() {
         type: 'cierre'
     };
     
-    // Agregar al inicio del array (más reciente primero)
+    // Agregar al inicio de la lista (más reciente primero)
     cashBoxRecords.unshift(record);
 
     // El cierre de caja también cierra todas las ventas de esta jornada.
@@ -172,7 +172,7 @@ function saveCashBoxRecord() {
     // Ocultar resultados
     document.getElementById('cashbox-results').hidden = true;
     
-    // Resetear cálculo actual
+    // Reiniciar el cálculo actual
     currentCashBoxCalculation = {
         initialFund: 0,
         dailySales: 0,

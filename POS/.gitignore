@@ -5,17 +5,17 @@ __pycache__/
 .venv/
 venv/
 
-# Environment files and secrets
+# Archivos de entorno y secretos
 .env
 .env.*
 !.env.example
 
-# Django and local tooling
+# Django y herramientas locales
 staticfiles/
 media/
 .vscode/
 
-# Frontend dependencies and build output
+# Dependencias y archivos compilados del frontend
 node_modules/
 dist/
 build/

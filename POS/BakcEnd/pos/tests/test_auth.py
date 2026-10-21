@@ -13,7 +13,7 @@ from ..views import INVALID_LOGIN_MESSAGE
 
 class AuthenticationTests(APITestCase):
     def setUp(self):
-        cache.clear()  # Reinicia el contador de intentos fallidos del login.
+        cache.clear()  # Reinicia el contador de intentos fallidos de inicio de sesión.
         self.user = User.objects.create_user(
             username='cashier',
             password='correct-password',

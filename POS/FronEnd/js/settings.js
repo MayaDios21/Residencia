@@ -108,7 +108,7 @@ function resetSystem() {
             // Limpiar localStorage completamente
             localStorage.clear();
             
-            // Resetear todas las variables globales
+            // Reiniciar todas las variables globales
             products = [];
             categories = [];
             cart = [];

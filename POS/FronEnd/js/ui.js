@@ -1,6 +1,6 @@
 /*
  * INTERFAZ COMPARTIDA
- * Avisos temporales (toasts), modal de confirmación de acciones y escape de
+ * Avisos temporales, modal de confirmación de acciones y escape de
  * texto para insertar datos del usuario en HTML.
  */
 

@@ -161,7 +161,7 @@
                                 <button type="button" class="btn-small-cancel" onclick="hideNewCategoryForm()">Cancelar</button>
                             </div>
                         </div>
-                        <!-- Add an image upload field to the product form -->
+                        <!-- Campo para subir la imagen del producto en el formulario -->
                         <div class="form-group">
                             <label for="product-image">Imagen del Producto</label>
                             <input type="file" id="product-image" name="product-image" accept="image/*">

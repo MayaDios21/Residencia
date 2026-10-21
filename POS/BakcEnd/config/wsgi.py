@@ -1,10 +1,11 @@
 """
-WSGI config for config project.
+Configuración WSGI del proyecto.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
+Expone la aplicación WSGI en la variable ``application`` de este módulo.
+Es la que usan los servidores de producción (por ejemplo, gunicorn).
 
-For more information on this file, see
-https://docs.djangoproject.com/en/6.1/howto/deployment/wsgi/
+Más información:
+https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 """
 
 import os

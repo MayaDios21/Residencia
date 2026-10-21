@@ -9,7 +9,7 @@ from ..services import apply_stock_movement
 
 class CatalogApiTests(APITestCase):
     def setUp(self):
-        cache.clear()  # Reinicia el contador de intentos fallidos del login.
+        cache.clear()  # Reinicia el contador de intentos fallidos de inicio de sesión.
         self.admin = User.objects.create_user(
             username='admin',
             password='correct-password',

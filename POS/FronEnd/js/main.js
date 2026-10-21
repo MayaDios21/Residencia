@@ -1,7 +1,7 @@
 /*
  * ARRANQUE DEL SISTEMA
  * Carga los datos guardados, dibuja la interfaz y después decide si reabrir
- * la sesión guardada o mostrar el login. Se carga al final, después de todos
+ * la sesión guardada o mostrar el inicio de sesión. Se carga al final, después de todos
  * los demás módulos.
  */
 
@@ -35,7 +35,7 @@ function initializeSystem() {
         console.error('Error al inicializar el sistema:', error);
         alert('Error al inicializar el sistema. Abre la consola (F12) para más detalles.');
     }
-    // Con los datos listos, decide entre reabrir la sesión guardada o mostrar el login.
+    // Con los datos listos, decide entre reabrir la sesión guardada o mostrar el inicio de sesión.
     restoreSession();
 }
 

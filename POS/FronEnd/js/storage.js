@@ -18,7 +18,7 @@ function cleanCorruptedData() {
                     console.warn('⚠️ Datos de productos corruptos detectados, limpiando...');
                     localStorage.removeItem('pos_products');
                 }
-                // NO eliminar si el array está vacío - el usuario pudo haberlos eliminado
+                // NO eliminar si la lista está vacía: el usuario pudo haberlos eliminado
             } catch (e) {
                 console.warn('⚠️ Error al parsear productos, limpiando...');
                 localStorage.removeItem('pos_products');
@@ -34,7 +34,7 @@ function cleanCorruptedData() {
                     console.warn('⚠️ Datos de categorías corruptos detectados, limpiando...');
                     localStorage.removeItem('pos_categories');
                 }
-                // NO eliminar si el array está vacío - el usuario pudo haberlas eliminado
+                // NO eliminar si la lista está vacía: el usuario pudo haberlas eliminado
             } catch (e) {
                 console.warn('⚠️ Error al parsear categorías, limpiando...');
                 localStorage.removeItem('pos_categories');

@@ -14,7 +14,7 @@ STRONG_PASSWORD = 'Birria-Compita-2026'
 
 class UserManagementTests(APITestCase):
     def setUp(self):
-        cache.clear()  # Reinicia el contador de intentos fallidos del login.
+        cache.clear()  # Reinicia el contador de intentos fallidos de inicio de sesión.
         self.admin = create_admin()
         self.cashier = create_cashier()
         self.client.force_authenticate(self.admin)

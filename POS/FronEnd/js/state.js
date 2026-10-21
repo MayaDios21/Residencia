@@ -79,7 +79,7 @@ const CURRENT_TAB_STORAGE_KEY = 'pos_current_tab';
 // usuario confirme un modal, por ejemplo borrar un registro o abrir la caja.
 let pendingAction = null;
 
-// Array para almacenar registros de caja
+// Lista de registros de caja
 let cashBoxRecords = [];
 
 let openingCash = {
@@ -90,7 +90,7 @@ let openingCash = {
 // ID para nuevos registros
 let nextCashBoxId = 1;
 
-// Objeto para almacenar el cálculo currente
+// Objeto para almacenar el cálculo actual
 let currentCashBoxCalculation = {
     initialFund: 0,
     dailySales: 0,

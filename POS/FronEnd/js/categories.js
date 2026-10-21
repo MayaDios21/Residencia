@@ -233,7 +233,7 @@ function createNewCategory() {
 }
 
 /**
- * Prompt para crear nueva categoría desde pestaña
+ * Pide el nombre de una nueva categoría desde las pestañas de Venta
  */
 function promptNewCategory() {
     const name = prompt('Nombre de la nueva categoría:');

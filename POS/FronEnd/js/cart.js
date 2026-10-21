@@ -252,7 +252,7 @@ async function confirmSale() {
 
 /**
  * Registra una venta en el historial
- * @param {Array} items - Items vendidos
+ * @param {Array} items - Artículos vendidos
  * @param {number} subtotal - Subtotal de la venta
  * @param {number} tax - IVA de la venta
  * @param {number} total - Total de la venta

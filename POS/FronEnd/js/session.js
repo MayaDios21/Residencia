@@ -1,6 +1,6 @@
 /*
  * SESIÓN
- * Login contra Django, persistencia de la sesión entre recargas (con
+ * Inicio de sesión contra Django, persistencia de la sesión entre recargas (con
  * verificación del token), navegación según el rol y cierre de sesión.
  */
 
@@ -74,7 +74,7 @@ async function startApp() {
     enterApp();
 }
 
-/** Envía el login con Enter o con "Ir" del teclado del iPad sin recargar la página. */
+/** Envía el inicio de sesión con Enter o con "Ir" del teclado del iPad sin recargar la página. */
 function handleLoginSubmit(event) {
     event.preventDefault();
     startApp();
@@ -104,7 +104,7 @@ function enterApp(savedTab = null) {
     }
 }
 
-/** Muestra la pantalla de login (sin sesión guardada o sesión expirada). */
+/** Muestra la pantalla de inicio de sesión (sin sesión guardada o sesión expirada). */
 function showLoginScreen() {
     delete document.body.dataset.tab;
     document.getElementById('session-loading').hidden = true;
@@ -123,7 +123,7 @@ function clearSessionStorage() {
 
 /**
  * Restaura la sesión al cargar la página. El servidor confirma que el token
- * sigue vigente; si responde 401/403 la sesión expiró y se vuelve al login.
+ * sigue vigente; si responde 401/403 la sesión expiró y se vuelve al inicio de sesión.
  */
 async function restoreSession() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);

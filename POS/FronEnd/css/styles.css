@@ -6,7 +6,7 @@
 
    Mapa del archivo:
    1. Variables (colores, radios, sombras, tamaños táctiles).
-   2. Base: reset, tipografía, foco, iconos y utilidades.
+   2. Base: reinicio de estilos, tipografía, foco, iconos y utilidades.
    3. Botones y formularios.
    4. Carga de sesión y pantalla de acceso.
    5. Estructura de la app: barra superior, pestañas y área de contenido.
@@ -14,7 +14,7 @@
    7. Pantallas: Panel, Venta, Productos/Categorías, Almacén, Ventas,
       Caja y Configuración.
    8. Modales y avisos.
-   9. Responsive: iPad vertical, iPad horizontal y celular.
+   9. Diseño adaptable: iPad vertical, iPad horizontal y celular.
 
    Reglas táctiles: todo :hover vive dentro de
    @media (hover: hover) and (pointer: fine) para que no se quede "pegado"
@@ -2024,10 +2024,10 @@ input[type="checkbox"] {
 }
 
 /* ============================================
-   9. RESPONSIVE
+   9. DISEÑO ADAPTABLE
    ============================================ */
 
-/* Hover solo con mouse o trackpad: en el iPad no se queda "pegado". */
+/* Efectos al pasar el puntero solo con mouse o panel táctil: en el iPad no se quedan "pegados". */
 @media (hover: hover) and (pointer: fine) {
     .btn:hover:not(:disabled) { background: var(--brand-strong); }
     .btn-secondary:hover:not(:disabled) { background: #fbf3f0; }
@@ -2049,7 +2049,7 @@ input[type="checkbox"] {
 }
 
 /* Tablet y computadora: la app ocupa toda la pantalla; la barra superior y
-   las pestañas quedan fijas y cada pantalla tiene su propio scroll. */
+   las pestañas quedan fijas y cada pantalla se desplaza por separado. */
 @media (min-width: 700px) {
     body[data-tab] {
         height: 100vh;
@@ -2071,7 +2071,7 @@ input[type="checkbox"] {
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Venta: sin scroll de pantalla; scroll solo en productos y carrito. */
+    /* Venta: la pantalla no se desplaza; solo se desplazan los productos y el carrito. */
     body[data-tab="pos"] .app-content {
         overflow: hidden;
     }
@@ -2227,7 +2227,7 @@ input[type="checkbox"] {
     }
 }
 
-/* Celular: flujo normal de página con pestañas fijas arriba al hacer scroll. */
+/* Celular: flujo normal de página con pestañas fijas arriba al desplazarse. */
 @media (max-width: 699px) {
     :root {
         --gutter: 12px;
