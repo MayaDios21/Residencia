@@ -45,6 +45,7 @@ function getProductImageUrl(product) {
     return `../Public/assets/imagenes/${imageValue}`;
 }
 
+/** Asigna a cada producto su imagen guardada o la imagen por defecto según su nombre. */
 function normalizeProductImages() {
     products = products.map(product => {
         if (!product) return product;

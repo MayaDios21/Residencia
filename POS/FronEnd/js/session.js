@@ -116,10 +116,12 @@ function showLoginScreen() {
     document.getElementById('entry-screen').hidden = false;
 }
 
+/** Guarda la sesión activa en LocalStorage para recuperarla al recargar. */
 function saveSessionToStorage() {
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(adminSession));
 }
 
+/** Borra la sesión guardada y la pestaña recordada. */
 function clearSessionStorage() {
     localStorage.removeItem(SESSION_STORAGE_KEY);
     localStorage.removeItem(CURRENT_TAB_STORAGE_KEY);

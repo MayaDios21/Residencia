@@ -12,6 +12,7 @@ function shouldOpenCashBoxForToday() {
     return !hasOpening && !hasClosing;
 }
 
+/** Lleva el cursor al campo del fondo inicial y lo hace visible. */
 function focusOpeningCashField() {
     const initialFund = document.getElementById('initial-fund');
     if (initialFund) {
@@ -20,6 +21,7 @@ function focusOpeningCashField() {
     }
 }
 
+/** Si hoy no se ha abierto la caja, manda al cajero a registrar el fondo inicial. */
 function openDailyStartIfNeeded() {
     if (!shouldOpenCashBoxForToday()) return;
     showTab('cashbox');
@@ -27,10 +29,18 @@ function openDailyStartIfNeeded() {
     showNotification('📅 Nueva jornada: registra el fondo inicial para comenzar.');
 }
 
+/**
+ * Indica si ya se registró el cierre de caja de hoy.
+ * @returns {boolean}
+ */
 function isCashBoxClosedForToday() {
     return cashBoxRecords.some(record => record.dateKey === getLocalDateKey());
 }
 
+/**
+ * Revisa si todavía se puede vender hoy; avisa si la jornada ya se cerró.
+ * @returns {boolean}
+ */
 function canSellToday() {
     if (isCashBoxClosedForToday()) {
         showNotification('🚫 La jornada ya fue cerrada. No puedes vender más productos.');
@@ -39,6 +49,10 @@ function canSellToday() {
     return true;
 }
 
+/**
+ * Registra el fondo inicial de la jornada después de confirmarlo en el modal.
+ * @param {Event} event - Envío del formulario de apertura.
+ */
 function openCashBox(event) {
     event.preventDefault();
     const amount = parseFloat(document.getElementById('initial-fund').value);
@@ -65,6 +79,7 @@ function openCashBox(event) {
     );
 }
 
+/** Muestra el fondo inicial de hoy en el formulario y en el resumen. */
 function updateOpeningCashDisplay() {
     const today = getLocalDateKey();
     const amount = openingCash.dateKey === today ? openingCash.amount : 0;
@@ -74,6 +89,7 @@ function updateOpeningCashDisplay() {
     if (display) display.textContent = `$${amount.toFixed(2)}`;
 }
 
+/** Muestra el paso de cierre de caja solo cuando la jornada ya está abierta. */
 function updateCashBoxClosingVisibility() {
     const isOpen = openingCash.dateKey === getLocalDateKey() && openingCash.amount > 0;
     const closingStep = document.getElementById('cashbox-closing-step');
@@ -190,6 +206,7 @@ function saveCashBoxRecord() {
     alert(' Registro guardado exitosamente!');
 }
 
+/** Pide confirmación antes de guardar el cierre de jornada ya calculado. */
 function confirmCashBoxRecord() {
     if (!currentCashBoxCalculation.dailySales && !currentCashBoxCalculation.initialFund) {
         alert(' Debes calcular primero antes de guardar');

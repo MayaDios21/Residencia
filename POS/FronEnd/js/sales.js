@@ -93,6 +93,10 @@ function updateSalesSummary() {
     if (averageSaleEl) averageSaleEl.textContent = `$${averageSale.toFixed(2)}`;
 }
 
+/**
+ * Calcula el total, número de órdenes y artículos vendidos hoy.
+ * @returns {{total: number, count: number, items: number}}
+ */
 function getTodaySalesSummary() {
     const today = getLocalDateKey();
     const sales = salesHistory.filter(sale => getLocalDateKey(new Date(sale.date)) === today);
@@ -103,6 +107,7 @@ function getTodaySalesSummary() {
     };
 }
 
+/** Actualiza el resumen de ventas del día en la pantalla de Venta y en el panel. */
 function updateTodaySalesSummary() {
     const summary = getTodaySalesSummary();
     const total = document.getElementById('today-sales-total');
@@ -116,6 +121,12 @@ function updateTodaySalesSummary() {
     }
 }
 
+/**
+ * Marca como cerradas las ventas de una fecha al registrar el cierre de caja.
+ * @param {string} dateKey - Fecha en formato AAAA-MM-DD.
+ * @param {string} [closedAt] - Fecha y hora del cierre en ISO.
+ * @returns {boolean} true si alguna venta cambió.
+ */
 function closeSalesForDate(dateKey, closedAt = new Date().toISOString()) {
     let changed = false;
     salesHistory = salesHistory.map(sale => {
@@ -128,6 +139,7 @@ function closeSalesForDate(dateKey, closedAt = new Date().toISOString()) {
     return changed;
 }
 
+/** Marca como cerradas las ventas de los días que ya tienen cierre de caja. */
 function syncSalesWithCashBoxClosures() {
     const closedDates = new Set(cashBoxRecords.map(record => record.dateKey));
     let changed = false;
@@ -147,17 +159,21 @@ function filterSales() {
     loadSalesHistoryTab();
 }
 
+/** Pendiente: búsqueda de ventas (aún sin implementar). */
 function searchSales() {
 }
 
+/** Pendiente: exportación de ventas (aún en desarrollo). */
 function exportSales() {
     alert('Función de exportar en desarrollo');
 }
 
+/** Muestra cuántas ventas hay registradas (verificación básica). */
 function verifySalesIntegrity() {
     alert(`Ventas verificadas: ${salesHistory.length} registros correctos`);
 }
 
+/** Borra todo el historial de ventas después de confirmarlo en el modal. */
 function clearSalesHistory() {
     openActionModal(
         'Borrar historial de ventas',

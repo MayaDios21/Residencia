@@ -76,10 +76,18 @@ const CATALOG_VERSION = '2';
 const OLD_DEMO_PRODUCT_NAMES = ['Agua Natural 1L', 'Jugo Naranja', 'Sandwich Jamón', 'Café Americano', 'Papas Fritas', 'Galletas Oreo', 'Chocolate Snickers'];
 const OLD_DEMO_CATEGORY_NAMES = ['Comida', 'Snacks', 'Postres'];
 
+/**
+ * Indica si este navegador aún no revisa los datos de ejemplo antiguos.
+ * @returns {boolean}
+ */
 function needsCatalogMigration() {
     return localStorage.getItem(CATALOG_VERSION_KEY) !== CATALOG_VERSION;
 }
 
+/**
+ * Devuelve una copia independiente del menú por defecto.
+ * @returns {Object[]}
+ */
 function getDefaultProductsCopy() {
     return JSON.parse(JSON.stringify(defaultProducts));
 }
@@ -123,6 +131,7 @@ function loadProductsFromStorage() {
     nextProductId = Number.isNaN(savedNextId) ? highestId + 1 : Math.max(savedNextId, highestId + 1);
 }
 
+/** Guarda los insumos del almacén en LocalStorage. */
 function saveSupplies() {
     localStorage.setItem('pos_supplies', JSON.stringify(supplies));
 }
@@ -214,6 +223,7 @@ function loadSalesHistory() {
     }
 }
 
+/** Guarda el historial de ventas en LocalStorage. */
 function saveSalesHistory() {
     localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
 }

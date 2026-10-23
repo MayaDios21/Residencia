@@ -8,10 +8,20 @@ let managedUsers = [];
 
 const ROLE_LABELS = { admin: 'Administrador', cashier: 'Cajero' };
 
+/**
+ * Indica si el usuario de la lista es quien tiene la sesión abierta.
+ * @param {Object} user
+ * @returns {boolean}
+ */
 function isCurrentUser(user) {
     return user.username === adminSession?.displayName;
 }
 
+/**
+ * Da formato a la fecha del último acceso.
+ * @param {string|null} value - Fecha ISO o null.
+ * @returns {string} Fecha legible o 'Nunca'.
+ */
 function formatLastLogin(value) {
     if (!value) return 'Nunca';
     return new Date(value).toLocaleString('es-MX', {
@@ -38,6 +48,7 @@ async function loadUsers() {
     }
 }
 
+/** Dibuja la tabla de usuarios (con o sin inactivos) y el contador de activos. */
 function renderUsers() {
     const list = document.getElementById('users-list');
     const count = document.getElementById('users-count');
@@ -81,6 +92,7 @@ function renderUsers() {
     loadPasswordResetSelector();
 }
 
+/** Llena el selector de usuarios del formulario de restablecer contraseña. */
 function loadPasswordResetSelector() {
     const selector = document.getElementById('reset-password-user');
     if (!selector) return;
@@ -93,6 +105,12 @@ function loadPasswordResetSelector() {
     if (selected) selector.value = selected;
 }
 
+/**
+ * Revisa que la contraseña y su confirmación coincidan.
+ * @param {string} passwordId - ID del campo de contraseña.
+ * @param {string} confirmId - ID del campo de confirmación.
+ * @returns {boolean}
+ */
 function passwordsMatch(passwordId, confirmId) {
     const password = document.getElementById(passwordId).value;
     const confirmation = document.getElementById(confirmId).value;
@@ -104,6 +122,10 @@ function passwordsMatch(passwordId, confirmId) {
     return true;
 }
 
+/**
+ * Crea un usuario con los datos del formulario y recarga la lista.
+ * @param {Event} event - Envío del formulario de alta.
+ */
 async function createUser(event) {
     event.preventDefault();
     const form = document.getElementById('user-create-form');
@@ -129,6 +151,10 @@ async function createUser(event) {
     }
 }
 
+/**
+ * Pide confirmación para cambiar a un usuario entre cajero y administrador.
+ * @param {number} userId
+ */
 function confirmUserRoleChange(userId) {
     const user = managedUsers.find(item => item.id === userId);
     if (!user) return;
@@ -141,6 +167,10 @@ function confirmUserRoleChange(userId) {
     );
 }
 
+/**
+ * Pide confirmación para activar o desactivar a un usuario.
+ * @param {number} userId
+ */
 function confirmUserActiveChange(userId) {
     const user = managedUsers.find(item => item.id === userId);
     if (!user) return;
@@ -155,6 +185,12 @@ function confirmUserActiveChange(userId) {
     );
 }
 
+/**
+ * Envía el cambio de un usuario a la API y recarga la lista.
+ * @param {Object} user - Usuario a modificar.
+ * @param {Object} changes - Campos a cambiar.
+ * @param {string} successMessage - Aviso que se muestra si sale bien.
+ */
 async function applyUserChange(user, changes, successMessage) {
     try {
         await updateUserInApi(user.id, changes);
@@ -165,6 +201,10 @@ async function applyUserChange(user, changes, successMessage) {
     }
 }
 
+/**
+ * Restablece la contraseña del usuario elegido en el formulario.
+ * @param {Event} event - Envío del formulario de restablecer contraseña.
+ */
 async function resetUserPassword(event) {
     event.preventDefault();
     const form = document.getElementById('reset-password-form');

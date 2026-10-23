@@ -177,6 +177,7 @@ function checkout() {
     openSaleModal();
 }
 
+/** Muestra el modal de confirmación con el detalle y los totales de la venta pendiente. */
 function openSaleModal() {
     if (!pendingSale) return;
     const itemsContainer = document.getElementById('sale-modal-items');
@@ -198,6 +199,7 @@ function openSaleModal() {
     document.querySelector('.sale-confirm-btn').focus();
 }
 
+/** Cierra el modal de confirmación y descarta la venta pendiente. */
 function closeSaleModal() {
     const modal = document.getElementById('sale-confirmation-modal');
     if (modal) modal.hidden = true;
@@ -205,6 +207,10 @@ function closeSaleModal() {
     pendingSale = null;
 }
 
+/**
+ * Guarda la venta confirmada (en la API o en el navegador), descuenta existencias
+ * y vacía el carrito.
+ */
 async function confirmSale() {
     if (!pendingSale) return;
     const sale = pendingSale;

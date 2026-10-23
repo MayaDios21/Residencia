@@ -6,7 +6,11 @@
  * Registra entradas, salidas y ajustes de existencias.
  */
 
-/** Lista unificada de artículos del almacén; la clave distingue producto e insumo. */
+/**
+ * Junta en una sola lista los artículos que se cuentan en el almacén.
+ * @returns {{key: string, kind: 'product'|'supply', item: Object}[]} Cada entrada
+ *   trae una clave única ("product:7" o "supply:3"), su tipo y el objeto original.
+ */
 function getWarehouseItems() {
     const trackedProducts = products
         .filter(isInventoryTracked)
@@ -16,10 +20,19 @@ function getWarehouseItems() {
     return [...trackedProducts, ...supplyItems];
 }
 
+/**
+ * Busca un artículo del almacén por su clave.
+ * @param {string} key - Clave del selector, por ejemplo "product:7" o "supply:3".
+ * @returns {{key: string, kind: 'product'|'supply', item: Object}|null}
+ */
 function findWarehouseItem(key) {
     return getWarehouseItems().find(entry => entry.key === key) || null;
 }
 
+/**
+ * Dibuja la tabla de existencias (aplicando búsqueda y filtro de stock bajo)
+ * y llena el selector de artículos del formulario de movimientos.
+ */
 function loadWarehouse() {
     const list = document.getElementById('warehouse-list');
     const selector = document.getElementById('movement-product');
@@ -66,6 +79,11 @@ function loadWarehouse() {
         : allItems.map(({ key, item }) => `<option value="${key}">${escapeHtml(item.name)}</option>`).join('');
 }
 
+/**
+ * Da de alta un insumo nuevo sin existencias; el stock se registra después
+ * con una entrada de mercancía.
+ * @param {Event} event - Envío del formulario "Agregar insumo".
+ */
 function addSupply(event) {
     event.preventDefault();
     const name = document.getElementById('supply-name').value.trim();
@@ -88,6 +106,10 @@ function addSupply(event) {
     showNotification(`✓ Insumo "${name}" agregado. Registra una entrada para darle existencias.`);
 }
 
+/**
+ * Elimina un insumo del almacén después de confirmarlo en el modal.
+ * @param {number} supplyId - ID del insumo a eliminar.
+ */
 function deleteSupply(supplyId) {
     const supply = supplies.find(item => item.id === supplyId);
     if (!supply) return;
@@ -104,6 +126,11 @@ function deleteSupply(supplyId) {
     );
 }
 
+/**
+ * Registra una entrada, salida o ajuste de existencias de un producto o insumo.
+ * Una entrada suma, una salida resta y un ajuste fija el stock contado.
+ * @param {Event} event - Envío del formulario "Actualizar existencias".
+ */
 async function registerInventoryMovement(event) {
     event.preventDefault();
     const entry = findWarehouseItem(document.getElementById('movement-product').value);

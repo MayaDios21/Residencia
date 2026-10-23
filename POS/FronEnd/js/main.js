@@ -52,6 +52,7 @@ window.limpiar = function() {
     location.reload();
 };
 
+/** Utilidad de consola: reemplaza el catálogo por el menú por defecto. */
 window.cargarDefecto = function() {
     products = JSON.parse(JSON.stringify(defaultProducts));
     saveProducts();
@@ -59,6 +60,10 @@ window.cargarDefecto = function() {
     loadCategoryTabs();
 };
 
+/**
+ * Utilidad de consola: imprime el estado de productos, categorías, carrito y
+ * LocalStorage para depurar.
+ */
 window.diagnosticar = function() {
     console.clear();
     console.log('='.repeat(50));

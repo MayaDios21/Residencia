@@ -8,6 +8,7 @@ const ADMIN_TABS = ['admin-dashboard', 'admin', 'warehouse', 'categories', 'sett
 // El administrador no vende: solo revisa ventas y cierres desde sus pestañas.
 const CASHIER_TABS = ['pos'];
 
+/** Muestra la fecha de hoy en el encabezado, en formato largo en español. */
 function updateBusinessDate() {
     const dateElement = document.getElementById('current-business-date');
     if (!dateElement) return;

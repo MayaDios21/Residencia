@@ -26,12 +26,14 @@ function openActionModal(eyebrow, message, confirmLabel, callback) {
     confirmButton.focus();
 }
 
+/** Cierra el modal de confirmación sin ejecutar la acción pendiente. */
 function closeActionModal() {
     document.getElementById('action-confirmation-modal').hidden = true;
     document.body.classList.remove('modal-open');
     pendingAction = null;
 }
 
+/** Cierra el modal y ejecuta la acción que el usuario confirmó. */
 function confirmActionModal() {
     const callback = pendingAction;
     closeActionModal();
