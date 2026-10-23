@@ -9,7 +9,7 @@
 function loadSalesHistoryTab() {
     const salesList = document.getElementById('sales-list');
     if (!salesList) {
-        console.warn('⚠️ No se encontró el elemento sales-list');
+        console.warn('No se encontró el elemento sales-list');
         return;
     }
     
@@ -183,7 +183,7 @@ function clearSalesHistory() {
             salesHistory = [];
             localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
             loadSalesHistoryTab();
-            showNotification('✅ Historial de ventas borrado');
+            showNotification('Historial de ventas borrado');
         }
     );
 }

@@ -15,12 +15,12 @@ function cleanCorruptedData() {
             try {
                 const parsed = JSON.parse(savedProducts);
                 if (!Array.isArray(parsed)) {
-                    console.warn('⚠️ Datos de productos corruptos detectados, limpiando...');
+                    console.warn('Datos de productos corruptos detectados, limpiando...');
                     localStorage.removeItem('pos_products');
                 }
                 // NO eliminar si la lista está vacía: el usuario pudo haberlos eliminado
             } catch (e) {
-                console.warn('⚠️ Error al parsear productos, limpiando...');
+                console.warn('Error al parsear productos, limpiando...');
                 localStorage.removeItem('pos_products');
             }
         }
@@ -31,12 +31,12 @@ function cleanCorruptedData() {
             try {
                 const parsed = JSON.parse(savedCategories);
                 if (!Array.isArray(parsed)) {
-                    console.warn('⚠️ Datos de categorías corruptos detectados, limpiando...');
+                    console.warn('Datos de categorías corruptos detectados, limpiando...');
                     localStorage.removeItem('pos_categories');
                 }
                 // NO eliminar si la lista está vacía: el usuario pudo haberlas eliminado
             } catch (e) {
-                console.warn('⚠️ Error al parsear categorías, limpiando...');
+                console.warn('Error al parsear categorías, limpiando...');
                 localStorage.removeItem('pos_categories');
             }
         }
@@ -60,7 +60,7 @@ function saveProducts() {
         
         // Verificar si el error es por falta de espacio
         if (error.name === 'QuotaExceededError' || error.code === 22) {
-            alert('⚠️ No hay suficiente espacio de almacenamiento.\n\nSugerencias:\n• Las imágenes ahora se comprimen automáticamente\n• Elimina productos que ya no uses\n• Usa imágenes más pequeñas');
+            alert('No hay suficiente espacio de almacenamiento.\n\nSugerencias:\n• Las imágenes ahora se comprimen automáticamente\n• Elimina productos que ya no uses\n• Usa imágenes más pequeñas');
         } else {
             // No mostrar alerta para otros errores, solo registrar en consola
             console.warn('Los productos se guardarán en el siguiente intento');
@@ -160,7 +160,7 @@ function saveCategories() {
         
         // Verificar si el error es por falta de espacio
         if (error.name === 'QuotaExceededError' || error.code === 22) {
-            alert('⚠️ No hay suficiente espacio de almacenamiento para guardar las categorías.');
+            alert('No hay suficiente espacio de almacenamiento para guardar las categorías.');
         } else {
             // No mostrar alerta para otros errores, solo registrar en consola
             console.warn('Las categorías se guardarán en el siguiente intento');

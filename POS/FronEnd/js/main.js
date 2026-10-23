@@ -67,16 +67,16 @@ window.cargarDefecto = function() {
 window.diagnosticar = function() {
     console.clear();
     console.log('='.repeat(50));
-    console.log('🔍 DIAGNÓSTICO DEL SISTEMA POS');
+    console.log('DIAGNÓSTICO DEL SISTEMA POS');
     console.log('='.repeat(50));
     
-    console.log('\n📊 ESTADO ACTUAL:');
+    console.log('\nESTADO ACTUAL:');
     console.log(`  - Productos en memoria: ${products.length}`);
     console.log(`  - Categorías en memoria: ${categories.length}`);
     console.log(`  - Items en carrito: ${cart.length}`);
     console.log(`  - Categoría activa: ${activeCategory}`);
     
-    console.log('\n💾 LOCALSTORAGE:');
+    console.log('\nLOCALSTORAGE:');
     const savedProducts = localStorage.getItem('pos_products');
     console.log(`  - pos_products guardado: ${savedProducts ? 'SÍ' : 'NO'}`);
     if (savedProducts) {
@@ -94,17 +94,17 @@ window.diagnosticar = function() {
         console.log(`  - Cantidad: ${parsed.length}`);
     }
     
-    console.log('\n🎯 PRODUCTOS POR DEFECTO DISPONIBLES:');
+    console.log('\nPRODUCTOS POR DEFECTO DISPONIBLES:');
     console.log(`  - Total: ${defaultProducts.length}`);
     defaultProducts.forEach(p => console.log(`    • ${p.name} - $${p.price}`));
     
-    console.log('\n🏠 ELEMENTOS DEL DOM:');
+    console.log('\nELEMENTOS DEL DOM:');
     console.log(`  - products-grid: ${document.getElementById('products-grid') ? 'EXISTE' : 'NO EXISTE'}`);
     console.log(`  - category-tabs: ${document.getElementById('category-tabs') ? 'EXISTE' : 'NO EXISTE'}`);
     console.log(`  - cart-items: ${document.getElementById('cart-items') ? 'EXISTE' : 'NO EXISTE'}`);
     
     console.log('\n' + '='.repeat(50));
-    console.log('💡 COMANDOS ÚTILES:');
+    console.log('COMANDOS ÚTILES:');
     console.log('  - loadProducts() → Recargar productos en vista');
     console.log('  - loadCategoryTabs() → Recargar pestañas');
     console.log('  - resetSystem() → Limpiar datos y reiniciar');

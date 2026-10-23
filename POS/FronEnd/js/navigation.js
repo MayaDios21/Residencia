@@ -38,7 +38,7 @@ function showTab(tabName) {
     const requiresOpeningCash = !isAdmin
         && tabName !== 'cashbox' && tabName !== 'admin-dashboard';
     if (requiresOpeningCash && shouldOpenCashBoxForToday()) {
-        showNotification('🔒 Registra primero el fondo inicial para continuar.');
+        showNotification('Registra primero el fondo inicial para continuar.');
         showTab('cashbox');
         focusOpeningCashField();
         return;

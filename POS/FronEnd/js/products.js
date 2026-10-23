@@ -95,7 +95,7 @@ function loadProducts() {
         const productImageUrl = getProductImageUrl(product);
         const imageHTML = productImageUrl
             ? `<img src="${encodeURI(productImageUrl)}" alt="" class="product-card-image" width="160" height="110" loading="lazy">`
-            : `<span class="product-card-placeholder" aria-hidden="true">🍽️</span>`;
+            : `<span class="product-card-placeholder">Sin imagen</span>`;
 
         card.innerHTML = `
             ${imageHTML}
@@ -178,22 +178,22 @@ function addProduct(event) {
     
     // Validaciones
     if (!name) {
-        alert('⚠️ El nombre del producto es obligatorio');
+        alert('El nombre del producto es obligatorio');
         return;
     }
     
     if (price < 0) {
-        alert('⚠️ El precio no puede ser negativo');
+        alert('El precio no puede ser negativo');
         return;
     }
     
     if (isNaN(price)) {
-        alert('⚠️ Ingresa un precio válido');
+        alert('Ingresa un precio válido');
         return;
     }
     
     if (!category) {
-        alert('⚠️ Selecciona una categoría');
+        alert('Selecciona una categoría');
         return;
     }
     
@@ -203,7 +203,7 @@ function addProduct(event) {
     );
     
     if (existingProduct) {
-        alert('⚠️ Ya existe un producto con ese nombre');
+        alert('Ya existe un producto con ese nombre');
         return;
     }
     
@@ -236,11 +236,11 @@ function addProduct(event) {
                 loadProductList();
                 loadCategoryTabs();
                 
-                alert(`✅ Producto "${name}" agregado exitosamente!`);
+                alert(`Producto "${name}" agregado exitosamente!`);
             })
             .catch(error => {
                 console.error('Error al comprimir imagen:', error);
-                alert('⚠️ Error al procesar la imagen. Intenta con otra imagen.');
+                alert('Error al procesar la imagen. Intenta con otra imagen.');
             });
     } else {
         // Si no hay imagen, guardar sin imagen
@@ -262,18 +262,18 @@ function addProduct(event) {
         loadProductList();
         loadCategoryTabs();
         
-        alert(`✅ Producto "${name}" agregado exitosamente!`);
+        alert(`Producto "${name}" agregado exitosamente!`);
     }
 }
 
 /** Elimina todos los productos del sistema (y vacía el carrito). */
 function deleteAllProducts() {
     if (products.length === 0) {
-        alert('⚠️ No hay productos para eliminar');
+        alert('No hay productos para eliminar');
         return;
     }
 
-    const confirmMsg = `¿Estás seguro de eliminar TODOS los productos (${products.length})?\n\n⚠️ Esta acción no se puede deshacer.\n\nSe eliminarán todos los productos del sistema.`;
+    const confirmMsg = `¿Estás seguro de eliminar TODOS los productos (${products.length})?\n\nEsta acción no se puede deshacer.\n\nSe eliminarán todos los productos del sistema.`;
 
     openActionModal(
         'Eliminar productos',
@@ -289,7 +289,7 @@ function deleteAllProducts() {
             loadCategoryTabs();
             updateCart();
 
-            showNotification('✅ Todos los productos han sido eliminados');
+            showNotification('Todos los productos han sido eliminados');
         }
     );
 }
@@ -314,7 +314,7 @@ function deleteProduct(productId) {
         // Eliminar de la lista de productos
         products = products.filter(p => p.id !== productId);
         
-        // 🔥 GUARDAR EN LOCALSTORAGE
+        // Guardar en localStorage
         saveProducts();
         
         // Eliminar del carrito si está presente
@@ -326,7 +326,7 @@ function deleteProduct(productId) {
         loadCategoryTabs();
         updateCart();
         
-        showNotification('✅ Producto eliminado exitosamente');
+        showNotification('Producto eliminado exitosamente');
         }
     );
 }
@@ -400,7 +400,7 @@ function editProduct(productId) {
 
     // Cambiar el texto del botón para indicar que se está editando
     const submitButton = document.querySelector("#add-product-form button[type='submit']");
-    submitButton.textContent = "✓ Guardar cambios";
+    submitButton.textContent = "Guardar cambios";
     submitButton.classList.add('is-editing');
 }
 
@@ -474,7 +474,7 @@ function saveProductChanges(productId) {
             })
             .catch(error => {
                 console.error('Error al comprimir imagen:', error);
-                alert('⚠️ Error al procesar la imagen. Intenta con otra imagen.');
+                alert('Error al procesar la imagen. Intenta con otra imagen.');
             });
     } else {
         // Sin imagen nueva, mantener la anterior

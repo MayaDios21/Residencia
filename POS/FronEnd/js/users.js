@@ -43,7 +43,7 @@ async function loadUsers() {
         renderUsers();
     } catch (error) {
         list.innerHTML = '<tr><td colspan="6" class="table-empty">No se pudieron cargar los usuarios.</td></tr>';
-        showNotification(`⚠️ ${error.message}`);
+        showNotification(`${error.message}`);
         console.error('Error al cargar usuarios:', error);
     }
 }
@@ -115,7 +115,7 @@ function passwordsMatch(passwordId, confirmId) {
     const password = document.getElementById(passwordId).value;
     const confirmation = document.getElementById(confirmId).value;
     if (password !== confirmation) {
-        showNotification('⚠️ Las contraseñas no coinciden.');
+        showNotification('Las contraseñas no coinciden.');
         document.getElementById(confirmId).focus();
         return false;
     }
@@ -142,10 +142,10 @@ async function createUser(event) {
             password: document.getElementById('user-password').value
         });
         form.reset();
-        showNotification(`✓ Usuario ${user.username} creado como ${ROLE_LABELS[user.role].toLowerCase()}.`);
+        showNotification(`Usuario ${user.username} creado como ${ROLE_LABELS[user.role].toLowerCase()}.`);
         await loadUsers();
     } catch (error) {
-        showNotification(`⚠️ ${error.message}`);
+        showNotification(`${error.message}`);
     } finally {
         submitButton.disabled = false;
     }
@@ -163,7 +163,7 @@ function confirmUserRoleChange(userId) {
         'Cambiar rol',
         `${user.username} pasará de ${ROLE_LABELS[user.role]} a ${ROLE_LABELS[nextRole]}. Tendrá que iniciar sesión de nuevo.`,
         'Cambiar rol',
-        () => applyUserChange(user, { role: nextRole }, `✓ ${user.username} ahora es ${ROLE_LABELS[nextRole].toLowerCase()}.`)
+        () => applyUserChange(user, { role: nextRole }, `${user.username} ahora es ${ROLE_LABELS[nextRole].toLowerCase()}.`)
     );
 }
 
@@ -181,7 +181,7 @@ function confirmUserActiveChange(userId) {
             ? `${user.username} podrá volver a iniciar sesión.`
             : `${user.username} ya no podrá iniciar sesión y se cerrará su sesión abierta. Sus ventas y movimientos se conservan.`,
         activate ? 'Activar' : 'Desactivar',
-        () => applyUserChange(user, { is_active: activate }, `✓ ${user.username} ${activate ? 'activado' : 'desactivado'}.`)
+        () => applyUserChange(user, { is_active: activate }, `${user.username} ${activate ? 'activado' : 'desactivado'}.`)
     );
 }
 
@@ -197,7 +197,7 @@ async function applyUserChange(user, changes, successMessage) {
         showNotification(successMessage);
         await loadUsers();
     } catch (error) {
-        showNotification(`⚠️ ${error.message}`);
+        showNotification(`${error.message}`);
     }
 }
 
@@ -221,14 +221,14 @@ async function resetUserPassword(event) {
         form.reset();
         // El servidor cierra las sesiones del usuario al cambiar su contraseña.
         if (isCurrentUser(user)) {
-            showNotification('✓ Contraseña actualizada. Inicia sesión con la nueva contraseña.');
+            showNotification('Contraseña actualizada. Inicia sesión con la nueva contraseña.');
             await logoutSession();
             return;
         }
         loadPasswordResetSelector();
-        showNotification(`✓ Contraseña de ${user.username} actualizada.`);
+        showNotification(`Contraseña de ${user.username} actualizada.`);
     } catch (error) {
-        showNotification(`⚠️ ${error.message}`);
+        showNotification(`${error.message}`);
     } finally {
         submitButton.disabled = false;
     }

@@ -115,7 +115,7 @@ function removeFromCart(productId) {
             () => {
                 cart = cart.filter(item => item.id !== productId);
                 updateCart();
-                showNotification(`➖ Producto eliminado del carrito`);
+                showNotification(`Producto eliminado del carrito`);
             }
         );
     }
@@ -158,7 +158,7 @@ function checkout() {
         return stock !== null && item.quantity > stock;
     });
     if (unavailableProduct) {
-        showNotification(`⚠️ No hay existencias suficientes de ${unavailableProduct.name}.`);
+        showNotification(`No hay existencias suficientes de ${unavailableProduct.name}.`);
         return;
     }
     
@@ -244,13 +244,13 @@ async function confirmSale() {
         cart = [];
         updateCart();
         closeSaleModal();
-        showNotification(`✓ Venta registrada por $${sale.total.toFixed(2)} MXN`);
+        showNotification(`Venta registrada por $${sale.total.toFixed(2)} MXN`);
         showTab('pos');
     } catch (error) {
         if (error.status === 409) {
-            showNotification('⚠️ No hay existencias suficientes para completar la venta.');
+            showNotification('No hay existencias suficientes para completar la venta.');
         } else {
-            showNotification('⚠️ No se pudo registrar la venta. Intenta nuevamente.');
+            showNotification('No se pudo registrar la venta. Intenta nuevamente.');
         }
         console.error('Error al registrar venta en el servidor:', error);
     } finally {
@@ -294,6 +294,6 @@ function recordSale(items, subtotal, tax, total) {
         saveSalesHistory();
         updateTodaySalesSummary();
     } catch (error) {
-        console.error('❌ Error al registrar venta:', error);
+        console.error('Error al registrar venta:', error);
     }
 }

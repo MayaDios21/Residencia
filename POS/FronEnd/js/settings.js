@@ -46,7 +46,7 @@ function updateExchangeRate(event) {
     try {
         const newRate = parseFloat(document.getElementById('exchange-rate-input').value);
         if (isNaN(newRate) || newRate <= 0) {
-            alert('⚠️ Ingresa un tipo de cambio válido');
+            alert('Ingresa un tipo de cambio válido');
             return;
         }
         openActionModal(
@@ -57,12 +57,12 @@ function updateExchangeRate(event) {
                 exchangeRate = newRate;
                 localStorage.setItem('pos_exchangeRate', exchangeRate.toString());
                 displayExchangeRate();
-                showNotification(`✓ Tipo de cambio actualizado a $${exchangeRate.toFixed(2)}`);
+                showNotification(`Tipo de cambio actualizado a $${exchangeRate.toFixed(2)}`);
             }
         );
     } catch (error) {
         console.error('Error al actualizar tipo de cambio:', error);
-        alert('❌ Error al actualizar el tipo de cambio');
+        alert('Error al actualizar el tipo de cambio');
     }
 }
 
@@ -74,7 +74,7 @@ function updateTaxRate(event) {
     try {
         const newTaxPercent = parseFloat(document.getElementById('tax-rate-input').value);
         if (isNaN(newTaxPercent) || newTaxPercent < 0 || newTaxPercent > 100) {
-            alert('⚠️ Ingresa un porcentaje de IVA válido (0-100)');
+            alert('Ingresa un porcentaje de IVA válido (0-100)');
             return;
         }
         openActionModal(
@@ -85,12 +85,12 @@ function updateTaxRate(event) {
                 TAX_RATE = newTaxPercent / 100;
                 localStorage.setItem('pos_taxRate', TAX_RATE.toString());
                 displayTaxRate();
-                showNotification(`✓ IVA actualizado a ${newTaxPercent.toFixed(2)}%`);
+                showNotification(`IVA actualizado a ${newTaxPercent.toFixed(2)}%`);
             }
         );
     } catch (error) {
         console.error('Error al actualizar tasa de IVA:', error);
-        alert('❌ Error al actualizar la tasa de IVA');
+        alert('Error al actualizar la tasa de IVA');
     }
 }
 
@@ -131,10 +131,10 @@ function resetSystem() {
             saveCart();
             
             
-            showNotification('✅ Sistema reiniciado correctamente. Recargando página...');
+            showNotification('Sistema reiniciado correctamente. Recargando página...');
             window.location.reload();
         } catch (error) {
-            console.error('❌ Error al reiniciar:', error);
+            console.error('Error al reiniciar:', error);
             showNotification('Error al reiniciar el sistema. Revisa la consola para más detalles.');
         }
         }

@@ -90,12 +90,12 @@ function addSupply(event) {
     const minimum = Number(document.getElementById('supply-minimum').value);
 
     if (!name || !Number.isInteger(minimum) || minimum < 0) {
-        showNotification('⚠️ Escribe un nombre y un stock mínimo válido.');
+        showNotification('Escribe un nombre y un stock mínimo válido.');
         return;
     }
     const isDuplicate = getWarehouseItems().some(({ item }) => item.name.toLowerCase() === name.toLowerCase());
     if (isDuplicate) {
-        showNotification('⚠️ Ya existe un artículo con ese nombre en el almacén.');
+        showNotification('Ya existe un artículo con ese nombre en el almacén.');
         return;
     }
 
@@ -103,7 +103,7 @@ function addSupply(event) {
     saveSupplies();
     document.getElementById('supply-form').reset();
     loadWarehouse();
-    showNotification(`✓ Insumo "${name}" agregado. Registra una entrada para darle existencias.`);
+    showNotification(`Insumo "${name}" agregado. Registra una entrada para darle existencias.`);
 }
 
 /**
@@ -121,7 +121,7 @@ function deleteSupply(supplyId) {
             supplies = supplies.filter(item => item.id !== supplyId);
             saveSupplies();
             loadWarehouse();
-            showNotification(`✓ Insumo "${supply.name}" eliminado.`);
+            showNotification(`Insumo "${supply.name}" eliminado.`);
         }
     );
 }
@@ -141,7 +141,7 @@ async function registerInventoryMovement(event) {
     // Un ajuste fija el stock al valor indicado, por eso es el único que admite 0.
     const minimumQuantity = type === 'ajuste' ? 0 : 1;
     if (!entry || !Number.isInteger(quantity) || quantity < minimumQuantity) {
-        showNotification('⚠️ Selecciona un artículo y una cantidad válida.');
+        showNotification('Selecciona un artículo y una cantidad válida.');
         return;
     }
 
@@ -158,7 +158,7 @@ async function registerInventoryMovement(event) {
                 : type === 'ajuste' ? quantity
                 : currentStock - quantity;
             if (newStock < 0) {
-                showNotification('⚠️ El movimiento no puede dejar el stock en negativo.');
+                showNotification('El movimiento no puede dejar el stock en negativo.');
                 return;
             }
             item.stock = newStock;
@@ -168,11 +168,11 @@ async function registerInventoryMovement(event) {
 
         document.getElementById('inventory-movement-form').reset();
         loadWarehouse();
-        showNotification('✓ Movimiento de inventario registrado.');
+        showNotification('Movimiento de inventario registrado.');
     } catch (error) {
         showNotification(error.status === 409
-            ? '⚠️ El movimiento no puede dejar el stock en negativo.'
-            : '⚠️ No se pudo registrar el movimiento.');
+            ? 'El movimiento no puede dejar el stock en negativo.'
+            : 'No se pudo registrar el movimiento.');
         console.error('Error al registrar movimiento:', error);
     }
 }

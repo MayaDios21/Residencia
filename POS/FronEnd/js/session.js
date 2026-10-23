@@ -68,7 +68,7 @@ async function startApp() {
         };
         saveSessionToStorage();
     } catch (error) {
-        showNotification(`❌ ${error.message}`);
+        showNotification(`${error.message}`);
         document.getElementById('login-password').focus();
         return;
     } finally {
@@ -173,7 +173,7 @@ async function logoutSession() {
     } catch (error) {
         // 401/403: el token ya no era válido, así que la sesión ya estaba cerrada.
         if (error.status !== 401 && error.status !== 403) {
-            showNotification(`❌ ${error.message}`);
+            showNotification(`${error.message}`);
             return;
         }
     }

@@ -26,7 +26,7 @@ function openDailyStartIfNeeded() {
     if (!shouldOpenCashBoxForToday()) return;
     showTab('cashbox');
     focusOpeningCashField();
-    showNotification('📅 Nueva jornada: registra el fondo inicial para comenzar.');
+    showNotification('Nueva jornada: registra el fondo inicial para comenzar.');
 }
 
 /**
@@ -43,7 +43,7 @@ function isCashBoxClosedForToday() {
  */
 function canSellToday() {
     if (isCashBoxClosedForToday()) {
-        showNotification('🚫 La jornada ya fue cerrada. No puedes vender más productos.');
+        showNotification('La jornada ya fue cerrada. No puedes vender más productos.');
         return false;
     }
     return true;
@@ -74,7 +74,7 @@ function openCashBox(event) {
             localStorage.setItem('pos_opening_cash', JSON.stringify(openingCash));
             updateOpeningCashDisplay();
             updateCashBoxClosingVisibility();
-            showNotification(`✓ Fondo de apertura guardado: $${amount.toFixed(2)}`);
+            showNotification(`Fondo de apertura guardado: $${amount.toFixed(2)}`);
         }
     );
 }
@@ -241,7 +241,7 @@ function loadCashBoxTab() {
     const status = document.getElementById('cashbox-status');
     if (status) {
         status.textContent = cashBoxRecords.some(record => record.dateKey === getLocalDateKey())
-            ? '✓ Cierre de hoy registrado'
+            ? 'Cierre de hoy registrado'
             : 'Sin cierre de hoy';
         status.classList.toggle('closed', status.textContent.includes('registrado'));
     }
@@ -313,7 +313,7 @@ function deleteCashBoxRecord(recordId) {
             cashBoxRecords = cashBoxRecords.filter(r => r.id !== recordId);
             saveCashBoxRecords();
             loadCashBoxTable();
-            showNotification('✅ Registro eliminado exitosamente');
+            showNotification('Registro eliminado exitosamente');
         }
     );
 }
@@ -342,7 +342,7 @@ function clearCashBoxHistory() {
             nextCashBoxId = 1;
             saveCashBoxRecords();
             loadCashBoxTable();
-            showNotification('✅ Historial de caja borrado completamente');
+            showNotification('Historial de caja borrado completamente');
             }
         )
     );

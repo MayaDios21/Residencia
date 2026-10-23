@@ -1408,7 +1408,8 @@ input[type="checkbox"] {
 .product-card-placeholder {
     display: grid;
     place-items: center;
-    font-size: 2.6rem;
+    color: var(--muted);
+    font-size: 0.85rem;
 }
 
 .product-name {

@@ -41,7 +41,7 @@ function createCategory(name, color = '#95a5a6') {
 /** Elimina todas las categorías del sistema (los productos pasan a "Sin Categoría"). */
 function deleteAllCategories() {
     if (categories.length === 0) {
-        alert('⚠️ No hay categorías para eliminar');
+        alert('No hay categorías para eliminar');
         return;
     }
     
@@ -50,7 +50,7 @@ function deleteAllCategories() {
         return categories.some(c => c.name === p.category);
     });
     
-    let confirmMsg = `¿Estás seguro de eliminar TODAS las categorías (${categories.length})?\n\n⚠️ Esta acción no se puede deshacer.`;
+    let confirmMsg = `¿Estás seguro de eliminar TODAS las categorías (${categories.length})?\n\nEsta acción no se puede deshacer.`;
     
     if (productsWithCategories.length > 0) {
         confirmMsg += `\n\n${productsWithCategories.length} producto(s) serán movidos a "Sin Categoría".`;
@@ -72,7 +72,7 @@ function deleteAllCategories() {
             saveCategories();
 
             refreshCategoryViews();
-            showNotification('✅ Todas las categorías han sido eliminadas');
+            showNotification('Todas las categorías han sido eliminadas');
         }
     );
 }
@@ -99,7 +99,7 @@ function deleteCategory(categoryId) {
         saveCategories();
 
         refreshCategoryViews();
-        showNotification('✅ Categoría eliminada exitosamente');
+        showNotification('Categoría eliminada exitosamente');
     };
 
     const productsInCategory = products.filter(p => p.category === category.name);
