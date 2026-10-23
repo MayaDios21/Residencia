@@ -1,3 +1,8 @@
+"""
+API de movimientos de inventario (solo administrador): entradas, salidas y
+ajustes. Cada movimiento actualiza el stock con services.apply_stock_movement.
+"""
+
 from rest_framework import mixins, status, viewsets
 from rest_framework.response import Response
 

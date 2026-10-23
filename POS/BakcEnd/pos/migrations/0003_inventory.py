@@ -1,4 +1,6 @@
 # Generado por Django 5.2.18 el 2026-10-15 23:13
+# Inventario: agrega stock y stock mínimo a los productos y crea los movimientos
+# de inventario.
 
 import django.db.models.deletion
 from django.conf import settings

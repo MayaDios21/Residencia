@@ -1,3 +1,8 @@
+"""
+Pruebas del catálogo: lectura por ambos roles, altas y cambios solo del
+administrador, validaciones y borrado de categorías y productos.
+"""
+
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from rest_framework import status

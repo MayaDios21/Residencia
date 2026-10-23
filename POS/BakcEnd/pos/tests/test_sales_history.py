@@ -1,3 +1,8 @@
+"""
+Pruebas del historial de ventas: filtros, resumen, exportación a CSV,
+verificación de montos y cancelación.
+"""
+
 from datetime import timedelta
 from decimal import Decimal
 

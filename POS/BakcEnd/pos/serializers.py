@@ -1,3 +1,9 @@
+"""
+Serializers de la API: convierten los modelos a JSON y validan los datos que
+llegan (inicio de sesión, usuarios, catálogo, inventario, configuración, caja
+y ventas).
+"""
+
 from decimal import Decimal
 
 from django.contrib.auth.models import User

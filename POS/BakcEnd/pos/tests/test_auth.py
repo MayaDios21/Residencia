@@ -1,3 +1,8 @@
+"""
+Pruebas de autenticación: inicio y cierre de sesión, mensaje genérico de error,
+límite de intentos fallidos y permisos por rol.
+"""
+
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import override_settings

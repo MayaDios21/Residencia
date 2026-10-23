@@ -1,3 +1,14 @@
+"""
+Modelos (tablas) de la base de datos del punto de venta.
+
+- UserProfile: rol de cada usuario (cajero o administrador).
+- Category y Product: catálogo, con stock y stock mínimo.
+- InventoryMovement: historial de entradas, salidas, ajustes, ventas y cancelaciones.
+- SystemSettings: IVA y tipo de cambio (una sola fila).
+- CashSession: jornada de caja, con su apertura y su cierre (una por día).
+- Sale y SaleItem: ventas y sus productos, con copias de precios e IVA.
+"""
+
 from decimal import Decimal
 
 from django.contrib.auth.models import User

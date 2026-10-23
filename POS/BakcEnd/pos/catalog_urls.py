@@ -1,3 +1,5 @@
+"""Rutas del catálogo bajo /api/: /api/categorias/ y /api/productos/."""
+
 from rest_framework.routers import DefaultRouter
 
 from .catalog_views import CategoryViewSet, ProductViewSet

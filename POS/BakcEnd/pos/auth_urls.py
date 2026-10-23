@@ -1,3 +1,5 @@
+"""Rutas de autenticación bajo /api/auth/: login/, logout/ y me/ (usuario actual)."""
+
 from django.urls import path
 
 from .views import LoginView, LogoutView, MeView

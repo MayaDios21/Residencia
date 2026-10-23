@@ -1,3 +1,5 @@
+# Archivos y carpetas que Git no debe subir al repositorio: compilados de
+# Python, secretos, bases de datos locales y archivos generados.
 # Python
 __pycache__/
 *.py[cod]

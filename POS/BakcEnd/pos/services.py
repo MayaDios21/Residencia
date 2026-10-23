@@ -1,3 +1,12 @@
+"""
+Lógica de negocio del punto de venta, separada de las vistas.
+
+Reúne las operaciones que deben ser atómicas o que comparten reglas:
+movimientos de stock, apertura y cierre de caja, registro, cancelación y
+verificación de ventas, y gestión de usuarios. Las vistas solo validan los
+datos de entrada y llaman a estas funciones.
+"""
+
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.contrib.auth.models import User

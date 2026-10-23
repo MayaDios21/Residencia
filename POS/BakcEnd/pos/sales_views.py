@@ -1,3 +1,9 @@
+"""
+API de ventas (/api/ventas/): registrar ventas, historial con filtros, resumen,
+exportación a CSV, verificación de montos y cancelación. Los cálculos viven en
+services.py.
+"""
+
 import csv
 from datetime import date
 

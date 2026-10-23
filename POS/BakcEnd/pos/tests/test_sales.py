@@ -1,3 +1,8 @@
+"""
+Pruebas del registro de ventas: totales calculados en el servidor, descuento
+de stock, caja abierta obligatoria y validaciones.
+"""
+
 from decimal import Decimal
 
 from django.utils import timezone

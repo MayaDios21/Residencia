@@ -1,3 +1,11 @@
+"""
+Permisos por rol para la API.
+
+- IsAdminRole: solo administrador.
+- IsCashierRole: solo cajero.
+- IsCatalogUser / IsPosUser: cualquier usuario con un rol válido.
+"""
+
 from rest_framework.permissions import BasePermission
 
 from .models import UserProfile

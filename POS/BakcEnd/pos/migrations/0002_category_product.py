@@ -1,4 +1,5 @@
 # Generado por Django 5.2.18 el 2026-10-14 22:10
+# Crea las categorías y los productos del catálogo (nombre único por categoría).
 
 import django.db.models.deletion
 from django.db import migrations, models

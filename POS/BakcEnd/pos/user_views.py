@@ -1,3 +1,8 @@
+"""
+API de gestión de usuarios (/api/usuarios/), solo para el administrador: alta,
+cambio de rol, activación y restablecimiento de contraseña.
+"""
+
 from django.contrib.auth.models import User
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action

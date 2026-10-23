@@ -1,3 +1,5 @@
+"""Pruebas de la configuración del sistema (IVA y tipo de cambio)."""
+
 from decimal import Decimal
 
 from rest_framework import status

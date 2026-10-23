@@ -1,3 +1,11 @@
+/*
+ * COMUNICACIÓN CON EL BACKEND
+ * Dirección de la API de Django, token de sesión y funciones para llamarla.
+ * El inicio de sesión y la gestión de usuarios siempre usan la API; ventas,
+ * inventario y catálogo solo cuando USE_API es true (mientras tanto se
+ * guardan en el navegador). Es el primer módulo que carga index.html.
+ */
+
 const API_URL = window.POS_API_URL || 'http://127.0.0.1:8000/api';
 const USE_API = false;
 const AUTH_TOKEN_KEY = 'pos_auth_token';

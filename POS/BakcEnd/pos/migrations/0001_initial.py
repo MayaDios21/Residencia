@@ -1,4 +1,5 @@
 # Generado por Django 5.2.18 el 2026-10-12 22:49
+# Crea el perfil de usuario (UserProfile) con su rol: cajero o administrador.
 
 import django.db.models.deletion
 from django.conf import settings

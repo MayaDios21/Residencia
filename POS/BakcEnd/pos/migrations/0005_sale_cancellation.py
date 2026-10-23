@@ -1,4 +1,6 @@
 # Generado por Django 5.2.18 el 2026-10-20 21:52
+# Cancelación de ventas: guarda quién, cuándo y por qué se canceló, y agrega el
+# tipo de movimiento "cancelacion".
 
 import django.db.models.deletion
 from django.conf import settings

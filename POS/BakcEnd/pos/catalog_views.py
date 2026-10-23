@@ -1,3 +1,10 @@
+"""
+API del catálogo: categorías y productos.
+
+Ambos roles pueden consultarlos; solo el administrador crea, edita o borra.
+Un producto con historial de inventario no se borra (responde 409): se desactiva.
+"""
+
 from django.db.models import ProtectedError
 from rest_framework import status, viewsets
 from rest_framework.response import Response

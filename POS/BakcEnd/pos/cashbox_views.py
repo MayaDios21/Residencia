@@ -1,3 +1,8 @@
+"""
+API de caja (/api/caja/): estado de la jornada, apertura, cierre y consulta o
+exportación a CSV de los cierres.
+"""
+
 import csv
 
 from django.http import HttpResponse

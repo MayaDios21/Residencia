@@ -1,3 +1,5 @@
+"""Funciones de apoyo para las pruebas: crear usuarios con rol de administrador o cajero."""
+
 from django.contrib.auth.models import User
 
 from ..models import UserProfile

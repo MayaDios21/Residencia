@@ -1,3 +1,8 @@
+"""
+API de autenticación (/api/auth/): inicio de sesión por rol con límite de
+intentos fallidos, cierre de sesión y datos del usuario actual.
+"""
+
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.core.cache import cache

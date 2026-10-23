@@ -1,3 +1,8 @@
+"""
+Rutas de la operación diaria bajo /api/: /api/configuracion/, /api/caja/,
+/api/ventas/ y /api/usuarios/.
+"""
+
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 

@@ -1,3 +1,8 @@
+"""
+Pruebas de caja: apertura, cierre, cálculo del efectivo esperado y exportación
+de cierres.
+"""
+
 from datetime import timedelta
 from decimal import Decimal
 

@@ -1,3 +1,8 @@
+"""
+Pruebas de la gestión de usuarios: alta, cambio de rol, activación, contraseñas
+y reglas para no quedarse sin administrador.
+"""
+
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from rest_framework import status

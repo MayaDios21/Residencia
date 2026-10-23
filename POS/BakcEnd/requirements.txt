@@ -1,3 +1,11 @@
+# Dependencias del backend. Instalar con:
+#   python -m pip install -r requirements.txt
+#
+# Django                Framework web del backend.
+# djangorestframework   API REST y autenticación por token.
+# django-cors-headers   Permite que el frontend (otro puerto o dominio) use la API.
+# dj-database-url       Lee la conexión a la base de datos desde DATABASE_URL.
+# psycopg               Conector de PostgreSQL.
 Django>=5.2,<5.3
 djangorestframework==3.16.1
 django-cors-headers==4.7.0

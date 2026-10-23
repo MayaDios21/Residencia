@@ -1,3 +1,11 @@
+"""
+Panel de Django (/admin/): registro de los modelos para consultarlos.
+
+Ventas, jornadas de caja y movimientos de inventario son de solo lectura, y el
+stock de los productos no se edita aquí: todo eso se registra por la API para
+que los totales y las existencias siempre se calculen bien.
+"""
+
 from django.contrib import admin
 
 from .models import (

@@ -1,3 +1,8 @@
+"""
+Pruebas de inventario: entradas, salidas y ajustes, stock que no puede quedar
+negativo y permisos.
+"""
+
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APITestCase

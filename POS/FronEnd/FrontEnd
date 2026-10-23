@@ -1,4 +1,9 @@
 <!DOCTYPE html>
+<!--
+    VERSIÓN ANTIGUA DE LA INTERFAZ (septiembre de 2026). No se usa: la interfaz
+    actual es FronEnd/index.html. Se conserva solo como referencia y se puede
+    borrar.
+-->
 <html lang="es">
 <head>
     <meta charset="UTF-8">

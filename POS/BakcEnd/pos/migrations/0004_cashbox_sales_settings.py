@@ -1,4 +1,6 @@
 # Generado por Django 5.2.18 el 2026-10-19 23:31
+# Crea la configuración (IVA y tipo de cambio), las jornadas de caja, las ventas
+# y sus partidas, y liga cada movimiento de inventario a la venta que lo generó.
 
 import django.core.validators
 import django.db.models.deletion
