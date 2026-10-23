@@ -10,6 +10,10 @@ let products = [];
 // Base de datos de categorías
 let categories = [];
 
+// Insumos del almacén que no se venden (vasos, platos, cucharas…).
+let supplies = [];
+let nextSupplyId = 1;
+
 // Productos por defecto (solo se cargan la primera vez)
 const defaultProducts = [
     { id: 1, name: "Taco de Birria", price: 30.00, category: "Tacos", image: "../Public/assets/imagenes/Taco Birria.jpg" },
@@ -18,8 +22,8 @@ const defaultProducts = [
     { id: 4, name: "Quesabirria Harina", price: 60.00, category: "Quesadillas", image: "../Public/assets/imagenes/Quesabirria Harina.jpg" },
     { id: 5, name: "Consomé", price: 25.00, category: "Extras", image: "../Public/assets/imagenes/Consome.jpg" },
     { id: 6, name: "Consomé con Carne", price: 35.00, category: "Extras", image: "../Public/assets/imagenes/Consome Con Carne.jpg" },
-    { id: 7, name: "Agua Grande", price: 20.00, category: "Bebidas", image: "../Public/assets/imagenes/Agua Grande.jpg" },
-    { id: 8, name: "Coca Cola 600ml", price: 25.00, category: "Bebidas", image: "../Public/assets/imagenes/Cocacola-lata.png" }
+    { id: 7, name: "Agua Grande", price: 20.00, category: "Bebidas", image: "../Public/assets/imagenes/Agua Grande.jpg", track_inventory: true },
+    { id: 8, name: "Coca Cola 600ml", price: 25.00, category: "Bebidas", image: "../Public/assets/imagenes/Cocacola-lata.png", track_inventory: true }
 ];
 
 const defaultProductImages = {

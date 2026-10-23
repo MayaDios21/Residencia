@@ -1655,7 +1655,8 @@ input[type="checkbox"] {
 }
 
 /* ---------- Usuarios ---------- */
-.users-forms {
+.users-forms,
+.warehouse-forms {
     display: grid;
     gap: 16px;
 }

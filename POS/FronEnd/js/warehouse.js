@@ -1,68 +1,132 @@
 /*
  * ALMACÉN
- * Existencias por producto y registro de entradas, salidas y ajustes.
+ * Solo consumibles que se cuentan por pieza: productos de venta marcados con
+ * "Controlar en almacén" (refrescos, aguas…) e insumos que no se venden
+ * (vasos, platos, cucharas…). La comida no se contabiliza aquí.
+ * Registra entradas, salidas y ajustes de existencias.
  */
+
+/** Lista unificada de artículos del almacén; la clave distingue producto e insumo. */
+function getWarehouseItems() {
+    const trackedProducts = products
+        .filter(isInventoryTracked)
+        .map(product => ({ key: `product:${product.id}`, kind: 'product', item: product }));
+    const supplyItems = supplies
+        .map(supply => ({ key: `supply:${supply.id}`, kind: 'supply', item: supply }));
+    return [...trackedProducts, ...supplyItems];
+}
+
+function findWarehouseItem(key) {
+    return getWarehouseItems().find(entry => entry.key === key) || null;
+}
 
 function loadWarehouse() {
     const list = document.getElementById('warehouse-list');
     const selector = document.getElementById('movement-product');
     if (!list || !selector) return;
 
+    const allItems = getWarehouseItems();
     const search = (document.getElementById('warehouse-search')?.value || '').trim().toLowerCase();
     const onlyLowStock = document.getElementById('warehouse-low-stock')?.checked;
-    const visibleProducts = products.filter(product => {
-        const stock = getProductStock(product);
-        const matchesSearch = product.name.toLowerCase().includes(search);
-        const isLowStock = stock !== null && stock <= getProductMinimumStock(product);
+    const visibleItems = allItems.filter(({ item }) => {
+        const stock = getProductStock(item);
+        const matchesSearch = item.name.toLowerCase().includes(search);
+        const isLowStock = stock !== null && stock <= getProductMinimumStock(item);
         return matchesSearch && (!onlyLowStock || isLowStock);
     });
 
-    document.getElementById('warehouse-product-count').textContent = `${visibleProducts.length} productos`;
-    list.innerHTML = visibleProducts.length === 0
-        ? '<tr><td colspan="5" class="table-empty">No hay productos que coincidan.</td></tr>'
-        : visibleProducts.map(product => {
-            const stock = getProductStock(product);
-            const minimum = getProductMinimumStock(product);
+    document.getElementById('warehouse-product-count').textContent =
+        `${visibleItems.length} ${visibleItems.length === 1 ? 'artículo' : 'artículos'}`;
+    list.innerHTML = visibleItems.length === 0
+        ? `<tr><td colspan="6" class="table-empty">${allItems.length === 0
+            ? 'Marca refrescos y aguas con "Controlar en almacén" en Productos, o agrega insumos como vasos y platos.'
+            : 'No hay artículos que coincidan.'}</td></tr>`
+        : visibleItems.map(({ kind, item }) => {
+            const stock = getProductStock(item);
+            const minimum = getProductMinimumStock(item);
             const status = stock === null ? 'Sin registrar' : stock <= minimum ? 'Stock bajo' : 'Disponible';
             const statusClass = stock === null ? 'unknown' : stock <= minimum ? 'low' : 'available';
+            const action = kind === 'supply'
+                ? `<button class="btn btn-ghost btn-compact" type="button" onclick="deleteSupply(${item.id})" aria-label="Eliminar ${escapeHtml(item.name)}">Eliminar</button>`
+                : '';
             return `
                 <tr>
-                    <td>${escapeHtml(product.name)}</td>
-                    <td>${escapeHtml(product.category || 'Sin categoría')}</td>
+                    <td>${escapeHtml(item.name)}</td>
+                    <td>${kind === 'supply' ? 'Insumo' : 'Venta'}</td>
                     <td class="num">${stock === null ? '—' : stock}</td>
                     <td class="num">${minimum}</td>
                     <td><span class="warehouse-status ${statusClass}">${status}</span></td>
+                    <td>${action}</td>
                 </tr>
             `;
         }).join('');
 
-    selector.innerHTML = products.length === 0
-        ? '<option value="">No hay productos</option>'
-        : products.map(product => `<option value="${product.id}">${escapeHtml(product.name)}</option>`).join('');
+    selector.innerHTML = allItems.length === 0
+        ? '<option value="">No hay artículos</option>'
+        : allItems.map(({ key, item }) => `<option value="${key}">${escapeHtml(item.name)}</option>`).join('');
+}
+
+function addSupply(event) {
+    event.preventDefault();
+    const name = document.getElementById('supply-name').value.trim();
+    const minimum = Number(document.getElementById('supply-minimum').value);
+
+    if (!name || !Number.isInteger(minimum) || minimum < 0) {
+        showNotification('⚠️ Escribe un nombre y un stock mínimo válido.');
+        return;
+    }
+    const isDuplicate = getWarehouseItems().some(({ item }) => item.name.toLowerCase() === name.toLowerCase());
+    if (isDuplicate) {
+        showNotification('⚠️ Ya existe un artículo con ese nombre en el almacén.');
+        return;
+    }
+
+    supplies.push({ id: nextSupplyId++, name, stock: null, minimum_stock: minimum });
+    saveSupplies();
+    document.getElementById('supply-form').reset();
+    loadWarehouse();
+    showNotification(`✓ Insumo "${name}" agregado. Registra una entrada para darle existencias.`);
+}
+
+function deleteSupply(supplyId) {
+    const supply = supplies.find(item => item.id === supplyId);
+    if (!supply) return;
+    openActionModal(
+        'Eliminar insumo',
+        `Se eliminará "${supply.name}" del almacén junto con sus existencias.`,
+        'Eliminar',
+        () => {
+            supplies = supplies.filter(item => item.id !== supplyId);
+            saveSupplies();
+            loadWarehouse();
+            showNotification(`✓ Insumo "${supply.name}" eliminado.`);
+        }
+    );
 }
 
 async function registerInventoryMovement(event) {
     event.preventDefault();
-    const productId = Number(document.getElementById('movement-product').value);
+    const entry = findWarehouseItem(document.getElementById('movement-product').value);
     const type = document.getElementById('movement-type').value;
     const quantity = Number(document.getElementById('movement-quantity').value);
     const reason = document.getElementById('movement-reason').value.trim();
-    const product = products.find(item => item.id === productId);
 
     // Un ajuste fija el stock al valor indicado, por eso es el único que admite 0.
     const minimumQuantity = type === 'ajuste' ? 0 : 1;
-    if (!product || !Number.isInteger(quantity) || quantity < minimumQuantity) {
-        showNotification('⚠️ Selecciona un producto y una cantidad válida.');
+    if (!entry || !Number.isInteger(quantity) || quantity < minimumQuantity) {
+        showNotification('⚠️ Selecciona un artículo y una cantidad válida.');
         return;
     }
 
-    const movement = { product_id: productId, type, quantity, reason };
+    const { kind, item } = entry;
     try {
-        if (USE_API) {
+        // La API solo conoce los productos de venta; los insumos viven en el navegador.
+        if (USE_API && kind === 'product') {
+            const movement = { product_id: item.id, type, quantity, reason };
             const response = await createInventoryMovementInApi(movement);
-            if (Number.isFinite(response?.stock_remaining)) product.stock = response.stock_remaining;
+            if (Number.isFinite(response?.stock_remaining)) item.stock = response.stock_remaining;
         } else {
-            const currentStock = getProductStock(product) || 0;
+            const currentStock = getProductStock(item) || 0;
             const newStock = type === 'entrada' ? currentStock + quantity
                 : type === 'ajuste' ? quantity
                 : currentStock - quantity;
@@ -70,9 +134,9 @@ async function registerInventoryMovement(event) {
                 showNotification('⚠️ El movimiento no puede dejar el stock en negativo.');
                 return;
             }
-            product.stock = newStock;
-            product.minimum_stock = getProductMinimumStock(product);
-            saveProducts();
+            item.stock = newStock;
+            item.minimum_stock = getProductMinimumStock(item);
+            if (kind === 'supply') saveSupplies(); else saveProducts();
         }
 
         document.getElementById('inventory-movement-form').reset();

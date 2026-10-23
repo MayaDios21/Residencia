@@ -11,6 +11,7 @@ function initializeSystem() {
         loadCategoriesFromStorage();
         loadProductsFromStorage();
         markCatalogMigrated();
+        loadSuppliesFromStorage();
         loadSalesHistory();
         loadCashBoxRecords();
         loadExchangeRate();

@@ -73,7 +73,8 @@ function renderAdminDashboard() {
     if (chartCaption) chartCaption.textContent = rangeText;
     if (salesCaption) salesCaption.textContent = rangeText;
 
-    const stockAlerts = products.filter(product => {
+    // Alertas del almacén: consumibles de venta e insumos (vasos, platos…).
+    const stockAlerts = [...products.filter(isInventoryTracked), ...supplies].filter(product => {
         const stock = getProductStock(product);
         return stock !== null && stock <= getProductMinimumStock(product);
     });

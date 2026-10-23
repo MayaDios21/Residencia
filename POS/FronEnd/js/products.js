@@ -169,6 +169,7 @@ function addProduct(event) {
     const name = document.getElementById('product-name').value.trim();
     const price = parseFloat(document.getElementById('product-price').value);
     const category = document.getElementById('product-category').value.trim();
+    const trackInventory = document.getElementById('product-track-inventory').checked;
     const productImage = document.getElementById("product-image").files[0];
     const form = document.getElementById("add-product-form");
     const editingProductId = form.dataset.editingProductId;
@@ -221,6 +222,7 @@ function addProduct(event) {
                     name: name,
                     price: price,
                     category: category,
+                    track_inventory: trackInventory,
                     image: compressedImage // Guardar imagen comprimida en base64
                 };
                 
@@ -246,6 +248,7 @@ function addProduct(event) {
             name: name,
             price: price,
             category: category,
+            track_inventory: trackInventory,
             image: null
         };
         
@@ -346,6 +349,7 @@ function loadProductList() {
         const categoryBadge = product.category && product.category !== 'Sin Categoría'
             ? `<span class="badge">${escapeHtml(product.category)}</span>`
             : '';
+        const inventoryBadge = isInventoryTracked(product) ? '<span class="badge">En almacén</span>' : '';
 
         // Imagen local, en base64 o un recuadro "Sin imagen".
         const imageSrc = getProductImageUrl(product);
@@ -357,7 +361,7 @@ function loadProductList() {
             ${imageHTML}
             <div class="product-list-info">
                 <strong>${escapeHtml(product.name)}</strong>
-                <span class="product-list-meta">${categoryBadge}<span class="product-list-price">$${product.price.toFixed(2)}</span></span>
+                <span class="product-list-meta">${categoryBadge}${inventoryBadge}<span class="product-list-price">$${product.price.toFixed(2)}</span></span>
             </div>
             <div class="row-actions">
                 <button class="btn btn-secondary" type="button" onclick="editProduct(${product.id})">Editar</button>
@@ -385,6 +389,7 @@ function editProduct(productId) {
     document.getElementById("product-name").value = product.name;
     document.getElementById("product-price").value = product.price;
     document.getElementById("product-category").value = product.category;
+    document.getElementById("product-track-inventory").checked = isInventoryTracked(product);
     
     // Desplazar hacia el formulario
     document.querySelector('.admin-section').scrollIntoView({ behavior: 'smooth' });
@@ -407,6 +412,7 @@ function saveProductChanges(productId) {
     const updatedName = document.getElementById("product-name").value.trim();
     const updatedPrice = parseFloat(document.getElementById("product-price").value);
     const updatedCategory = document.getElementById("product-category").value.trim();
+    const updatedTrackInventory = document.getElementById("product-track-inventory").checked;
     const productImageFile = document.getElementById("product-image").files[0];
 
     // Validaciones
@@ -439,6 +445,7 @@ function saveProductChanges(productId) {
             name: updatedName,
             price: updatedPrice,
             category: updatedCategory,
+            track_inventory: updatedTrackInventory,
             image: imageData !== undefined ? imageData : products[productIndex].image
         };
 

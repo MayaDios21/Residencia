@@ -110,9 +110,33 @@ function loadProductsFromStorage() {
         saveProducts();
     }
 
+    // Catálogos guardados antes de existir el control de almacén: solo las
+    // bebidas se cuentan; tacos, quesadillas y extras no.
+    products.forEach(product => {
+        if (typeof product.track_inventory !== 'boolean') {
+            product.track_inventory = product.category === 'Bebidas';
+        }
+    });
+
     const savedNextId = parseInt(localStorage.getItem('pos_nextProductId'), 10);
     const highestId = products.reduce((max, product) => Math.max(max, Number(product.id) || 0), defaultProducts.length);
     nextProductId = Number.isNaN(savedNextId) ? highestId + 1 : Math.max(savedNextId, highestId + 1);
+}
+
+function saveSupplies() {
+    localStorage.setItem('pos_supplies', JSON.stringify(supplies));
+}
+
+/** Carga los insumos del almacén (vasos, platos…); una lista vacía es válida. */
+function loadSuppliesFromStorage() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem('pos_supplies'));
+        supplies = Array.isArray(parsed) ? parsed.filter(item => item && item.id && item.name) : [];
+    } catch (error) {
+        console.error('Error al cargar insumos:', error);
+        supplies = [];
+    }
+    nextSupplyId = supplies.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
 }
 
 /**

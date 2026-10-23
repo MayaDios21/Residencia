@@ -5,6 +5,8 @@
  */
 
 const ADMIN_TABS = ['admin-dashboard', 'admin', 'warehouse', 'categories', 'settings', 'users'];
+// El administrador no vende: solo revisa ventas y cierres desde sus pestañas.
+const CASHIER_TABS = ['pos'];
 
 function updateBusinessDate() {
     const dateElement = document.getElementById('current-business-date');
@@ -26,12 +28,14 @@ function showTab(tabName) {
         showNotification('Esta sección requiere acceso de administrador.');
         return;
     }
+    const isAdmin = adminSession?.role === 'admin';
+    if (CASHIER_TABS.includes(tabName) && isAdmin) {
+        tabName = 'admin-dashboard';
+    }
 
-    // El administrador solo revisa métricas y administra productos: no se le pide
-    // iniciar jornada. Solo la necesita si entra a vender desde la pestaña Venta.
-    const requiresOpeningCash = adminSession?.role === 'admin'
-        ? tabName === 'pos'
-        : tabName !== 'cashbox' && tabName !== 'admin-dashboard';
+    // Solo el cajero inicia jornada; el administrador nunca registra fondo inicial.
+    const requiresOpeningCash = !isAdmin
+        && tabName !== 'cashbox' && tabName !== 'admin-dashboard';
     if (requiresOpeningCash && shouldOpenCashBoxForToday()) {
         showNotification('🔒 Registra primero el fondo inicial para continuar.');
         showTab('cashbox');

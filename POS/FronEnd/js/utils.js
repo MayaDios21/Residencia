@@ -19,7 +19,14 @@ function convertToUSD(mxn) {
     return mxn / exchangeRate;
 }
 
+/** Solo los consumibles marcados (refrescos, aguas…) llevan existencias; la comida no. */
+function isInventoryTracked(product) {
+    return product?.track_inventory === true;
+}
+
 function getProductStock(product) {
+    // Los productos de venta sin control de almacén nunca limitan la venta.
+    if (product?.track_inventory === false) return null;
     return Number.isFinite(Number(product.stock)) ? Number(product.stock) : null;
 }
 

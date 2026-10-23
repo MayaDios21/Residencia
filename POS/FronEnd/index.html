@@ -397,6 +397,14 @@
                                     <button type="button" class="btn btn-ghost" onclick="hideNewCategoryForm()">Cancelar</button>
                                 </div>
                             </div>
+                            <!-- Solo los consumibles (refrescos, aguas…) se cuentan en el almacén. -->
+                            <div class="form-group">
+                                <label class="check-field">
+                                    <input type="checkbox" id="product-track-inventory">
+                                    Controlar en almacén
+                                </label>
+                                <small class="field-help">Márcalo en refrescos, aguas y otros productos por pieza. La comida (tacos, quesadillas, consomé) no se cuenta.</small>
+                            </div>
                             <!-- Imagen opcional del producto; se comprime antes de guardarla. -->
                             <div class="form-group">
                                 <label for="product-image">Imagen del producto (opcional)</label>
@@ -425,7 +433,7 @@
                     </div>
                     <div class="toolbar">
                         <label class="inline-field" for="warehouse-search">Buscar
-                            <input type="search" id="warehouse-search" placeholder="Producto…" oninput="loadWarehouse()" autocomplete="off">
+                            <input type="search" id="warehouse-search" placeholder="Artículo…" oninput="loadWarehouse()" autocomplete="off">
                         </label>
                         <label class="check-field">
                             <input type="checkbox" id="warehouse-low-stock" onchange="loadWarehouse()">
@@ -438,17 +446,19 @@
                     <div class="panel">
                         <div class="panel-heading">
                             <h3>Existencias actuales</h3>
-                            <span id="warehouse-product-count">0 productos</span>
+                            <span id="warehouse-product-count">0 artículos</span>
                         </div>
+                        <p class="field-help">Solo consumibles por pieza: refrescos y aguas marcados en Productos, más los insumos como vasos, platos y cucharas.</p>
                         <div class="table-wrapper">
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th scope="col">Producto</th>
-                                        <th scope="col">Categoría</th>
+                                        <th scope="col">Artículo</th>
+                                        <th scope="col">Tipo</th>
                                         <th scope="col" class="num">Existencia</th>
                                         <th scope="col" class="num">Mínimo</th>
                                         <th scope="col">Estado</th>
+                                        <th scope="col"><span class="visually-hidden">Acciones</span></th>
                                     </tr>
                                 </thead>
                                 <tbody id="warehouse-list"></tbody>
@@ -456,13 +466,14 @@
                         </div>
                     </div>
 
+                    <div class="warehouse-forms">
                     <div class="panel panel-accent">
                         <span class="eyebrow">Operación de inventario</span>
                         <h3>Actualizar existencias</h3>
                         <p class="field-help">Registra entradas, salidas o correcciones para mantener el stock al día.</p>
                         <form id="inventory-movement-form" onsubmit="registerInventoryMovement(event)">
                             <div class="form-group">
-                                <label for="movement-product">Producto</label>
+                                <label for="movement-product">Artículo</label>
                                 <select id="movement-product" required></select>
                             </div>
                             <div class="form-group">
@@ -484,6 +495,24 @@
                             </div>
                             <button type="submit" class="btn btn-block">Guardar movimiento</button>
                         </form>
+                    </div>
+
+                    <div class="panel">
+                        <span class="eyebrow">Insumos</span>
+                        <h3>Agregar insumo</h3>
+                        <p class="field-help">Artículos que se usan pero no se venden, como vasos, platos o cucharas.</p>
+                        <form id="supply-form" onsubmit="addSupply(event)">
+                            <div class="form-group">
+                                <label for="supply-name">Nombre</label>
+                                <input type="text" id="supply-name" maxlength="80" required placeholder="Ej.: Vasos desechables" autocomplete="off">
+                            </div>
+                            <div class="form-group">
+                                <label for="supply-minimum">Stock mínimo</label>
+                                <input type="number" id="supply-minimum" min="0" step="1" value="5" required inputmode="numeric">
+                            </div>
+                            <button type="submit" class="btn btn-secondary btn-block">Agregar insumo</button>
+                        </form>
+                    </div>
                     </div>
                 </div>
             </section>
@@ -603,14 +632,15 @@
             <section id="cashbox-tab" class="tab-content" aria-labelledby="cashbox-title">
                 <div class="page-heading">
                     <div>
-                        <span class="eyebrow">Inicio de jornada</span>
+                        <span class="eyebrow" id="cashbox-eyebrow">Inicio de jornada</span>
                         <h2 id="cashbox-title">Apertura y cierre de caja</h2>
-                        <p class="page-subtitle">Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.</p>
+                        <p class="page-subtitle" id="cashbox-subtitle">Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.</p>
                     </div>
                     <div class="status-pill" id="cashbox-status">Sin cierre de hoy</div>
                 </div>
 
-                <div class="cashbox-container">
+                <!-- Apertura y cierre: solo el cajero; el administrador ve únicamente el historial. -->
+                <div class="cashbox-container" id="cashbox-operation">
                     <div class="panel">
                         <h3>1. Iniciar caja</h3>
                         <form id="opening-cash-form" onsubmit="openCashBox(event)">

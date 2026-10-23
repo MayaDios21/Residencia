@@ -207,6 +207,15 @@ function confirmCashBoxRecord() {
  * Carga la pestaña de control de caja
  */
 function loadCashBoxTab() {
+    // El administrador no abre ni cierra caja: solo consulta el historial de cierres.
+    const isAdmin = adminSession?.role === 'admin';
+    document.getElementById('cashbox-operation').hidden = isAdmin;
+    document.getElementById('cashbox-eyebrow').textContent = isAdmin ? 'Consulta' : 'Inicio de jornada';
+    document.getElementById('cashbox-title').textContent = isAdmin ? 'Cierres de caja' : 'Apertura y cierre de caja';
+    document.getElementById('cashbox-subtitle').textContent = isAdmin
+        ? 'Revisa los cierres de jornada registrados por los cajeros.'
+        : 'Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.';
+
     const today = getTodaySalesSummary();
     const dailySalesInput = document.getElementById('daily-sales');
     if (dailySalesInput) dailySalesInput.value = today.total.toFixed(2);

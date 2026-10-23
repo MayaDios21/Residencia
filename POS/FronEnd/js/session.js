@@ -31,6 +31,10 @@ function updateRoleNavigation() {
         const button = document.querySelector(`.tab[data-tab="${tabName}"]`);
         if (button) button.hidden = !isAdmin;
     });
+    CASHIER_TABS.forEach(tabName => {
+        const button = document.querySelector(`.tab[data-tab="${tabName}"]`);
+        if (button) button.hidden = isAdmin;
+    });
     document.getElementById('session-role').textContent = isAdmin ? 'Administrador' : 'Cajero';
     document.getElementById('session-user').textContent = adminSession.displayName;
     // Las pestañas de categoría de Venta cambian según el rol ("+ Nueva categoría").
@@ -93,7 +97,7 @@ function enterApp(savedTab = null) {
     const isAdmin = adminSession.role === 'admin';
     const canRestoreTab = savedTab
         && document.getElementById(`${savedTab}-tab`)
-        && (isAdmin || !ADMIN_TABS.includes(savedTab));
+        && (isAdmin ? !CASHIER_TABS.includes(savedTab) : !ADMIN_TABS.includes(savedTab));
 
     if (isAdmin) {
         renderAdminDashboard();

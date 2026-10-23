@@ -152,7 +152,9 @@ function checkout() {
     }
 
     const unavailableProduct = cart.find(item => {
-        const stock = getProductStock(item);
+        // El carrito no guarda existencias: se consultan en el catálogo.
+        const product = products.find(productItem => productItem.id === item.id);
+        const stock = product ? getProductStock(product) : null;
         return stock !== null && item.quantity > stock;
     });
     if (unavailableProduct) {
