@@ -21,7 +21,9 @@ class SalesHistoryTestCase(APITestCase):
     def setUp(self):
         self.admin = create_admin()
         self.cashier = create_cashier()
-        self.taco = Product.objects.create(name='Taco de Birria', price='25.00', stock=20)
+        self.taco = Product.objects.create(
+            name='Taco de Birria', price='25.00', stock=20, track_inventory=True,
+        )
         self.consome = Product.objects.create(name='Consomé', price='30.00')
         today = timezone.localdate()
         self.yesterday_session = CashSession.objects.create(

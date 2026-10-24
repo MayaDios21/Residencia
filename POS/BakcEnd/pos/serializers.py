@@ -18,6 +18,7 @@ from .models import (
     Product,
     Sale,
     SaleItem,
+    Supply,
     SystemSettings,
     UserProfile,
 )
@@ -75,6 +76,7 @@ class ProductSerializer(serializers.ModelSerializer):
             'price',
             'image',
             'is_active',
+            'track_inventory',
             'stock',
             'minimum_stock',
         )
@@ -94,11 +96,21 @@ class InventoryMovementSerializer(serializers.ModelSerializer):
         InventoryMovement.Type.ADJUSTMENT,
     )
 
+    # Se envía uno de los dos: product_id (producto de venta) o supply_id (insumo).
     product_id = serializers.PrimaryKeyRelatedField(
         source='product',
         queryset=Product.objects.all(),
+        required=False,
+        allow_null=True,
     )
-    product_name = serializers.CharField(source='product.name', read_only=True)
+    supply_id = serializers.PrimaryKeyRelatedField(
+        source='supply',
+        queryset=Supply.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    kind = serializers.SerializerMethodField()
+    item_name = serializers.SerializerMethodField()
     type = serializers.ChoiceField(
         choices=[(value, InventoryMovement.Type(value).label) for value in MANUAL_TYPES],
     )
@@ -110,8 +122,10 @@ class InventoryMovementSerializer(serializers.ModelSerializer):
         model = InventoryMovement
         fields = (
             'id',
+            'kind',
             'product_id',
-            'product_name',
+            'supply_id',
+            'item_name',
             'type',
             'quantity',
             'reason',
@@ -129,12 +143,45 @@ class InventoryMovementSerializer(serializers.ModelSerializer):
         data['type'] = instance.type
         return data
 
+    def get_kind(self, movement):
+        return 'insumo' if movement.supply_id else 'producto'
+
+    def get_item_name(self, movement):
+        return movement.item.name
+
     def validate(self, attrs):
+        product = attrs.get('product')
+        supply = attrs.get('supply')
+        if bool(product) == bool(supply):
+            raise serializers.ValidationError(
+                'Indica un producto (product_id) o un insumo (supply_id), solo uno.'
+            )
+        if product and not product.track_inventory:
+            raise serializers.ValidationError(
+                {'product_id': 'Este producto no se controla en almacén.'}
+            )
         if attrs['type'] != InventoryMovement.Type.ADJUSTMENT and attrs['quantity'] == 0:
             raise serializers.ValidationError(
                 {'quantity': 'La cantidad debe ser mayor que cero.'}
             )
         return attrs
+
+
+class SupplySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Supply
+        fields = ('id', 'name', 'stock', 'minimum_stock', 'is_active')
+        # Igual que en productos: el stock solo cambia con movimientos de inventario.
+        read_only_fields = ('stock',)
+
+    def validate_name(self, value):
+        value = value.strip()
+        duplicate = Supply.objects.filter(name__iexact=value)
+        if self.instance:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if duplicate.exists():
+            raise serializers.ValidationError('Ya existe un insumo con ese nombre.')
+        return value
 
 
 class SystemSettingsSerializer(serializers.ModelSerializer):

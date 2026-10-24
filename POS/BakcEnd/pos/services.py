@@ -7,8 +7,11 @@ verificación de ventas, y gestión de usuarios. Las vistas solo validan los
 datos de entrada y llaman a estas funciones.
 """
 
+import math
+from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Sum
@@ -21,6 +24,7 @@ from .models import (
     Product,
     Sale,
     SaleItem,
+    Supply,
     SystemSettings,
     UserProfile,
 )
@@ -75,25 +79,32 @@ def calculate_new_stock(movement_type, current_stock, quantity):
 
 
 @transaction.atomic
-def apply_stock_movement(product_id, movement_type, quantity, user, reason='', sale=None):
-    """Registra un movimiento y actualiza el stock del producto de forma atómica.
+def apply_stock_movement(product_id, movement_type, quantity, user, reason='', sale=None,
+                         supply_id=None):
+    """Registra un movimiento y actualiza el stock de forma atómica.
 
-    Bloquea la fila del producto para evitar que dos movimientos simultáneos
-    calculen el stock a partir del mismo valor. Lanza InsufficientStockError si
-    el resultado quedaría negativo.
+    El movimiento es de un producto (``product_id``) o, si se pasa ``supply_id``
+    con ``product_id=None``, de un insumo. Bloquea la fila para evitar que dos
+    movimientos simultáneos calculen el stock a partir del mismo valor. Lanza
+    InsufficientStockError si el resultado quedaría negativo.
     """
-    product = Product.objects.select_for_update().get(pk=product_id)
-    stock_before = product.stock or 0
-    stock_after = calculate_new_stock(movement_type, product.stock, quantity)
+    if supply_id is not None:
+        item = Supply.objects.select_for_update().get(pk=supply_id)
+        target = {'supply': item}
+    else:
+        item = Product.objects.select_for_update().get(pk=product_id)
+        target = {'product': item}
+    stock_before = item.stock or 0
+    stock_after = calculate_new_stock(movement_type, item.stock, quantity)
 
     if stock_after < 0:
-        raise InsufficientStockError(product, stock_before, quantity)
+        raise InsufficientStockError(item, stock_before, quantity)
 
-    product.stock = stock_after
-    product.save(update_fields=['stock'])
+    item.stock = stock_after
+    item.save(update_fields=['stock'])
 
     return InventoryMovement.objects.create(
-        product=product,
+        **target,
         type=movement_type,
         quantity=quantity,
         reason=reason,
@@ -102,6 +113,117 @@ def apply_stock_movement(product_id, movement_type, quantity, user, reason='', s
         user=user,
         sale=sale,
     )
+
+
+# ---------------------------------------------------------------------------
+# Alertas de stock y algoritmo de reabastecimiento
+# ---------------------------------------------------------------------------
+
+# Orden en que se muestran las alertas: lo más urgente primero.
+RESTOCK_LEVEL_ORDER = {'critico': 0, 'bajo': 1, 'sin_registrar': 2, 'ok': 3}
+
+
+def get_consumption_since(start_date):
+    """Unidades que salieron del almacén desde ``start_date`` (inclusive).
+
+    Consumo = ventas + salidas − cancelaciones. Así sirve igual para productos
+    que se venden (refrescos) y para insumos que solo se usan (vasos, platos).
+    Devuelve un diccionario {('product'|'supply', id): unidades}.
+    """
+    signs = {
+        InventoryMovement.Type.SALE: 1,
+        InventoryMovement.Type.EXIT: 1,
+        InventoryMovement.Type.CANCELLATION: -1,
+    }
+    rows = (
+        InventoryMovement.objects
+        .filter(created_at__date__gte=start_date, type__in=signs)
+        .values('product_id', 'supply_id', 'type')
+        .annotate(units=Sum('quantity'))
+    )
+    consumption = {}
+    for row in rows:
+        key = ('product', row['product_id']) if row['product_id'] else ('supply', row['supply_id'])
+        consumption[key] = consumption.get(key, 0) + signs[row['type']] * row['units']
+    return {key: max(units, 0) for key, units in consumption.items()}
+
+
+def evaluate_restock(stock, minimum_stock, consumed, window_days, lead_days):
+    """Calcula promedio diario, días de cobertura, cantidad sugerida y nivel.
+
+    - promedio_diario = consumo de la ventana / días de la ventana.
+    - dias_cobertura = stock / promedio_diario (None si no hay consumo).
+    - sugerido = promedio_diario × días de reposición + mínimo − stock (≥ 0),
+      redondeado hacia arriba a piezas completas.
+    - nivel: "critico" si no hay stock o se acaba antes de que llegue el pedido;
+      "bajo" si está en el mínimo o debajo; "sin_registrar" si nunca se contó;
+      "ok" en otro caso.
+    """
+    daily_average = consumed / window_days
+    current = stock or 0
+    coverage_days = current / daily_average if daily_average > 0 else None
+    suggested = max(0, math.ceil(daily_average * lead_days + minimum_stock - current))
+
+    if stock is None:
+        level = 'sin_registrar'
+    elif stock <= 0 or (coverage_days is not None and coverage_days < lead_days):
+        level = 'critico'
+    elif stock <= minimum_stock:
+        level = 'bajo'
+    else:
+        level = 'ok'
+
+    return {
+        'daily_average': round(daily_average, 2),
+        'coverage_days': round(coverage_days, 1) if coverage_days is not None else None,
+        'suggested_quantity': suggested,
+        'level': level,
+    }
+
+
+def build_restock_report(window_days=None, lead_days=None, include_ok=False):
+    """Evalúa los productos controlados en almacén y los insumos activos.
+
+    Devuelve la lista ordenada por urgencia; sin ``include_ok`` solo trae los
+    artículos que requieren atención (crítico, bajo o sin registrar).
+    """
+    window_days = window_days or settings.RESTOCK_WINDOW_DAYS
+    lead_days = settings.RESTOCK_LEAD_DAYS if lead_days is None else lead_days
+    start_date = timezone.localdate() - timedelta(days=window_days - 1)
+    consumption = get_consumption_since(start_date)
+
+    items = [
+        ('product', product)
+        for product in Product.objects.filter(track_inventory=True, is_active=True)
+    ] + [('supply', supply) for supply in Supply.objects.filter(is_active=True)]
+
+    report = []
+    for kind, item in items:
+        consumed = consumption.get((kind, item.pk), 0)
+        evaluation = evaluate_restock(item.stock, item.minimum_stock, consumed, window_days, lead_days)
+        if not include_ok and evaluation['level'] == 'ok':
+            continue
+        report.append({
+            'kind': 'producto' if kind == 'product' else 'insumo',
+            'id': item.pk,
+            'name': item.name,
+            'stock': item.stock,
+            'minimum_stock': item.minimum_stock,
+            'consumed': consumed,
+            **evaluation,
+        })
+
+    report.sort(key=lambda row: (
+        RESTOCK_LEVEL_ORDER[row['level']],
+        row['coverage_days'] if row['coverage_days'] is not None else float('inf'),
+        row['name'],
+    ))
+    return {
+        'window_days': window_days,
+        'lead_days': lead_days,
+        'since': start_date.isoformat(),
+        'items': report,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -272,8 +394,9 @@ def create_sale(items, user, payment_method=Sale.PaymentMethod.CASH):
             line_total=line_total,
         )
         item.stock_remaining = None
-        # Solo se descuentan los productos que controlan existencias.
-        if product.stock is not None:
+        # Solo se descuentan los productos controlados en almacén que ya se
+        # contaron (igual que el frontend: sin conteo no se bloquea la venta).
+        if product.track_inventory and product.stock is not None:
             movement = apply_stock_movement(
                 product.pk,
                 InventoryMovement.Type.SALE,

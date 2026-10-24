@@ -158,6 +158,11 @@ MAILERS = {
 LOGIN_MAX_FAILED_ATTEMPTS = 5
 LOGIN_FAILURE_WINDOW_SECONDS = 60
 
+# Algoritmo de reabastecimiento: días de historial que se promedian y días que
+# tarda en llegar un pedido (dato del negocio: 2 días).
+RESTOCK_WINDOW_DAYS = 14
+RESTOCK_LEAD_DAYS = 2
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',

@@ -20,7 +20,9 @@ class SaleApiTests(APITestCase):
         self.admin = create_admin()
         self.cashier = create_cashier()
         self.client.force_authenticate(self.cashier)
-        self.taco = Product.objects.create(name='Taco de Birria', price='25.00', stock=10)
+        self.taco = Product.objects.create(
+            name='Taco de Birria', price='25.00', stock=10, track_inventory=True,
+        )
         self.consome = Product.objects.create(name='Consomé', price='30.00')  # sin stock registrado
         CashSession.objects.create(
             business_date=timezone.localdate(),
@@ -65,6 +67,27 @@ class SaleApiTests(APITestCase):
         self.consome.refresh_from_db()
         self.assertEqual(self.taco.stock, 6)
         self.assertIsNone(self.consome.stock)
+
+    def test_untracked_product_is_not_discounted(self):
+        # Tiene stock guardado, pero no se controla en almacén (como la comida).
+        tortilla = Product.objects.create(name='Quesabirria', price='45.00', stock=3)
+
+        response = self.sell([{'product_id': tortilla.id, 'quantity': 5}])
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        tortilla.refresh_from_db()
+        self.assertEqual(tortilla.stock, 3)
+        self.assertFalse(InventoryMovement.objects.exists())
+
+    def test_tracked_product_without_count_can_be_sold(self):
+        # Igual que el frontend: si aún no se cuenta, la venta no se bloquea.
+        agua = Product.objects.create(name='Agua Grande', price='20.00', track_inventory=True)
+
+        response = self.sell([{'product_id': agua.id, 'quantity': 2}])
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        agua.refresh_from_db()
+        self.assertIsNone(agua.stock)
 
     def test_sale_creates_linked_inventory_movement(self):
         response = self.sell([{'product_id': self.taco.id, 'quantity': 2}])

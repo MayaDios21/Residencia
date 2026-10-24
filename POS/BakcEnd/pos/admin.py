@@ -15,6 +15,7 @@ from .models import (
     Product,
     Sale,
     SaleItem,
+    Supply,
     SystemSettings,
     UserProfile,
 )
@@ -35,18 +36,29 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'price', 'stock', 'minimum_stock', 'is_active')
-    list_filter = ('is_active', 'category')
+    list_display = (
+        'name', 'category', 'price', 'track_inventory', 'stock', 'minimum_stock', 'is_active',
+    )
+    list_filter = ('is_active', 'track_inventory', 'category')
     search_fields = ('name',)
     # El stock solo cambia con movimientos de inventario o ventas.
     readonly_fields = ('stock',)
 
 
+@admin.register(Supply)
+class SupplyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'stock', 'minimum_stock', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    # El stock solo cambia con movimientos de inventario.
+    readonly_fields = ('stock',)
+
+
 @admin.register(InventoryMovement)
 class InventoryMovementAdmin(admin.ModelAdmin):
-    list_display = ('created_at', 'product', 'type', 'quantity', 'stock_before', 'stock_after', 'user')
+    list_display = ('created_at', 'item', 'type', 'quantity', 'stock_before', 'stock_after', 'user')
     list_filter = ('type',)
-    search_fields = ('product__name', 'reason')
+    search_fields = ('product__name', 'supply__name', 'reason')
     readonly_fields = ('stock_before', 'stock_after', 'created_at')
 
     # Los movimientos se registran por la API para que actualicen el stock.

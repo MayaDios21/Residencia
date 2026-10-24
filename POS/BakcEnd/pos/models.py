@@ -2,8 +2,10 @@
 Modelos (tablas) de la base de datos del punto de venta.
 
 - UserProfile: rol de cada usuario (cajero o administrador).
-- Category y Product: catálogo, con stock y stock mínimo.
-- InventoryMovement: historial de entradas, salidas, ajustes, ventas y cancelaciones.
+- Category y Product: catálogo; solo los productos con track_inventory llevan stock.
+- Supply: insumos que no se venden (vasos, platos…), con su propio stock.
+- InventoryMovement: historial de entradas, salidas, ajustes, ventas y cancelaciones
+  de un producto o de un insumo.
 - SystemSettings: IVA y tipo de cambio (una sola fila).
 - CashSession: jornada de caja, con su apertura y su cierre (una por día).
 - Sale y SaleItem: ventas y sus productos, con copias de precios e IVA.
@@ -62,7 +64,10 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
-    # null significa "sin registrar": el producto no controla existencias.
+    # Solo los consumibles por pieza (refrescos, aguas…) se cuentan en el almacén;
+    # la comida no. Las ventas descuentan stock únicamente de estos productos.
+    track_inventory = models.BooleanField('controlar en almacén', default=False)
+    # null significa "sin registrar": todavía no se ha contado.
     stock = models.IntegerField(null=True, blank=True)
     minimum_stock = models.PositiveIntegerField(default=5)
 
@@ -85,6 +90,29 @@ class Product(models.Model):
         return self.name
 
 
+class Supply(models.Model):
+    """Insumo del almacén que no se vende: vasos, platos, cucharas, servilletas…"""
+
+    name = models.CharField(max_length=80, unique=True)
+    stock = models.IntegerField(null=True, blank=True)
+    minimum_stock = models.PositiveIntegerField(default=5)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ('name',)
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(stock__isnull=True) | models.Q(stock__gte=0),
+                name='supply_stock_not_negative',
+            ),
+        ]
+        verbose_name = 'insumo'
+        verbose_name_plural = 'insumos'
+
+    def __str__(self):
+        return self.name
+
+
 class InventoryMovement(models.Model):
     class Type(models.TextChoices):
         ENTRY = 'entrada', 'Entrada de mercancía'
@@ -93,10 +121,20 @@ class InventoryMovement(models.Model):
         SALE = 'venta', 'Venta'
         CANCELLATION = 'cancelacion', 'Cancelación de venta'
 
+    # Cada movimiento es de un producto o de un insumo, nunca de ambos.
     product = models.ForeignKey(
         Product,
         on_delete=models.PROTECT,
         related_name='inventory_movements',
+        null=True,
+        blank=True,
+    )
+    supply = models.ForeignKey(
+        Supply,
+        on_delete=models.PROTECT,
+        related_name='inventory_movements',
+        null=True,
+        blank=True,
     )
     type = models.CharField(max_length=20, choices=Type.choices)
     quantity = models.PositiveIntegerField()
@@ -120,11 +158,24 @@ class InventoryMovement(models.Model):
 
     class Meta:
         ordering = ('-created_at', '-id')
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(product__isnull=False, supply__isnull=True)
+                    | models.Q(product__isnull=True, supply__isnull=False)
+                ),
+                name='movement_has_product_or_supply',
+            ),
+        ]
         verbose_name = 'movimiento de inventario'
         verbose_name_plural = 'movimientos de inventario'
 
+    @property
+    def item(self):
+        return self.product or self.supply
+
     def __str__(self):
-        return f'{self.get_type_display()} {self.product} ({self.stock_before} → {self.stock_after})'
+        return f'{self.get_type_display()} {self.item} ({self.stock_before} → {self.stock_after})'
 
 
 class SystemSettings(models.Model):
