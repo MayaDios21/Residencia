@@ -826,8 +826,29 @@ input[type="checkbox"] {
     font-weight: 700;
 }
 
-/* Botón de menú y fondo del cajón: solo existen en celular (sección 9). */
-.admin-nav-toggle,
+/* Botón de menú del administrador (barra superior): en celular abre el cajón;
+   en pantallas anchas contrae el menú a iconos. El cajero no lo ve (hidden). */
+.admin-nav-toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap);
+    height: var(--tap);
+    padding: 0;
+    border: 1px solid rgba(255, 248, 237, 0.5);
+    border-radius: 10px;
+    background: rgba(255, 248, 237, 0.12);
+    color: var(--on-dark);
+    cursor: pointer;
+}
+
+.admin-nav-toggle .icon {
+    width: 22px;
+    height: 22px;
+}
+
+/* Fondo oscuro del cajón: solo existe en celular (sección 9). */
 .admin-nav-backdrop {
     display: none;
 }
@@ -2136,10 +2157,60 @@ input[type="checkbox"] {
     body.role-admin[data-tab] .app {
         grid-template-columns: 232px minmax(0, 1fr);
         grid-template-rows: auto minmax(0, 1fr);
+        transition: grid-template-columns 200ms var(--ease-out);
     }
 
     body.role-admin[data-tab] .app-bar {
         grid-column: 1 / -1;
+    }
+
+    /* Menú contraído: una columna de iconos. Los textos quedan para lectores de
+       pantalla. Tocar el icono de un grupo agrega .admin-nav-peek: el menú se
+       despliega completo encima de la pantalla, sin moverla, hasta elegir. */
+    body.role-admin.admin-nav-collapsed[data-tab] .app {
+        grid-template-columns: 64px minmax(0, 1fr);
+    }
+
+    .admin-nav-collapsed .admin-nav {
+        position: relative;
+        z-index: 40;
+        width: 64px;
+        transition: width 200ms var(--ease-out), box-shadow 200ms;
+    }
+
+    .admin-nav-collapsed:not(.admin-nav-peek) .admin-nav {
+        padding-right: 8px;
+        padding-left: 8px;
+        overflow: hidden;
+    }
+
+    .admin-nav-collapsed:not(.admin-nav-peek) .admin-nav-label,
+    .admin-nav-collapsed:not(.admin-nav-peek) .admin-nav-chevron {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .admin-nav-collapsed:not(.admin-nav-peek) .admin-nav > .tab,
+    .admin-nav-collapsed:not(.admin-nav-peek) .admin-nav-group-toggle {
+        justify-content: center;
+        padding: 0;
+    }
+
+    /* El icono del grupo de la pantalla actual queda resaltado. */
+    .admin-nav-collapsed:not(.admin-nav-peek) .admin-nav-group:has(.tab.active) .admin-nav-group-toggle {
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    /* Desplegado temporal: mismo ancho que el menú completo, encima de la pantalla. */
+    .admin-nav-collapsed.admin-nav-peek .admin-nav {
+        width: 232px;
+        overflow-x: hidden;
+        box-shadow: var(--shadow-lg);
     }
 
     /* Venta: la pantalla no se desplaza; solo se desplazan los productos y el carrito. */
@@ -2450,26 +2521,6 @@ input[type="checkbox"] {
         position: sticky;
         top: 0;
         z-index: 50;
-    }
-
-    .admin-nav-toggle {
-        display: inline-flex;
-        flex: none;
-        align-items: center;
-        justify-content: center;
-        width: var(--tap);
-        height: var(--tap);
-        padding: 0;
-        border: 1px solid rgba(255, 248, 237, 0.5);
-        border-radius: 10px;
-        background: rgba(255, 248, 237, 0.12);
-        color: var(--on-dark);
-        cursor: pointer;
-    }
-
-    .admin-nav-toggle .icon {
-        width: 22px;
-        height: 22px;
     }
 
     .admin-nav {

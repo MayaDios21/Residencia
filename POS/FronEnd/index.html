@@ -65,10 +65,11 @@
     <div class="app" id="app-container" hidden>
         <!-- Barra superior: logo y nombre a la izquierda; fecha y sesión a la derecha. -->
         <header class="app-bar">
-            <!-- Solo administrador en celular: abre y cierra el menú lateral. -->
+            <!-- Solo administrador: en celular abre y cierra el menú lateral; en
+                 pantallas anchas lo contrae a iconos o lo vuelve a expandir. -->
             <button class="admin-nav-toggle" id="admin-nav-toggle" type="button" aria-controls="admin-nav" aria-expanded="false" onclick="toggleAdminNav()" hidden>
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                <span class="visually-hidden">Menú</span>
+                <span class="visually-hidden" id="admin-nav-toggle-label">Menú</span>
             </button>
             <div class="brand">
                 <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="Tacos de Birria El Compita" class="brand-logo" width="72" height="48">
@@ -108,16 +109,19 @@
 
         <!-- Navegación del administrador: menú lateral con grupos desplegables.
              Los botones usan las mismas data-tab que showTab() y se abre solo
-             el grupo de la pantalla activa. En celular se muestra como cajón. -->
+             el grupo de la pantalla activa. En celular se muestra como cajón y en
+             pantallas anchas se puede contraer a iconos: tocar el icono de un grupo
+             despliega el menú encima de la pantalla y al elegir vuelve a iconos. -->
         <nav class="admin-nav" id="admin-nav" aria-label="Menú de administración" hidden>
-            <button class="tab" type="button" data-tab="admin-dashboard" onclick="showTab('admin-dashboard')">
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Panel
+            <button class="tab" type="button" data-tab="admin-dashboard" title="Panel" onclick="showTab('admin-dashboard')">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+                <span class="admin-nav-label">Panel</span>
             </button>
 
             <div class="admin-nav-group">
-                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-sales" onclick="toggleAdminNavGroup(this)">
+                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-sales" title="Ventas" onclick="toggleAdminNavGroup(this)">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
-                    <span>Ventas</span>
+                    <span class="admin-nav-label">Ventas</span>
                     <svg class="icon admin-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 </button>
                 <div class="admin-nav-items" id="admin-nav-sales" hidden>
@@ -127,9 +131,9 @@
             </div>
 
             <div class="admin-nav-group">
-                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-inventory" onclick="toggleAdminNavGroup(this)">
+                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-inventory" title="Inventario" onclick="toggleAdminNavGroup(this)">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
-                    <span>Inventario</span>
+                    <span class="admin-nav-label">Inventario</span>
                     <svg class="icon admin-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 </button>
                 <div class="admin-nav-items" id="admin-nav-inventory" hidden>
@@ -140,9 +144,9 @@
             </div>
 
             <div class="admin-nav-group">
-                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-system" onclick="toggleAdminNavGroup(this)">
+                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-system" title="Sistema" onclick="toggleAdminNavGroup(this)">
                     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
-                    <span>Sistema</span>
+                    <span class="admin-nav-label">Sistema</span>
                     <svg class="icon admin-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
                 </button>
                 <div class="admin-nav-items" id="admin-nav-system" hidden>
