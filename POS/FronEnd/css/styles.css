@@ -776,6 +776,90 @@ input[type="checkbox"] {
     background: rgba(255, 255, 255, 0.12);
 }
 
+/* Menú lateral del administrador: columna oscura con grupos desplegables.
+   Reusa .tab para las opciones; en celular se convierte en cajón (sección 9). */
+.admin-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 10px calc(12px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--nav-bg);
+}
+
+.admin-nav .tab {
+    flex: none;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 12px;
+}
+
+.admin-nav-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: var(--tap);
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background-color 150ms, color 150ms;
+}
+
+.admin-nav-group-toggle span {
+    flex: 1;
+}
+
+.admin-nav-group-toggle:active {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* El grupo que contiene la pantalla activa se distingue aunque esté cerrado. */
+.admin-nav-group:has(.tab.active) .admin-nav-group-toggle {
+    color: #fff;
+}
+
+.admin-nav-chevron {
+    transition: transform 150ms var(--ease-out);
+}
+
+.admin-nav-group-toggle[aria-expanded="true"] .admin-nav-chevron {
+    transform: rotate(90deg);
+}
+
+.admin-nav-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px 0 6px;
+}
+
+/* Las opciones se alinean con el texto del grupo (12 px + icono + separación). */
+.admin-nav-items .tab {
+    padding-left: 38px;
+    font-size: 0.92rem;
+    font-weight: 500;
+}
+
+.admin-nav-items .tab.active {
+    font-weight: 700;
+}
+
+/* Botón de menú y fondo del cajón: solo existen en celular (sección 9). */
+.admin-nav-toggle,
+.admin-nav-backdrop {
+    display: none;
+}
+
 /* Área de contenido: cada pantalla con margen cómodo y ancho máximo legible. */
 .app-content {
     background: var(--page);
@@ -2040,6 +2124,8 @@ input[type="checkbox"] {
     .btn.is-editing:hover { background: #255a75; }
     .logout-button:hover { background: rgba(255, 248, 237, 0.24); }
     .tab:hover:not(.active) { background: rgba(255, 255, 255, 0.1); color: #fff; }
+    .admin-nav-group-toggle:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+    .admin-nav-toggle:hover { background: rgba(255, 248, 237, 0.24); }
     .category-tab:hover:not(.active) { border-color: var(--brand); color: var(--brand); }
     .product-card:hover { border-color: var(--clay); box-shadow: var(--shadow); }
     .qty-btn:hover { background: var(--brand-strong); }
@@ -2071,6 +2157,17 @@ input[type="checkbox"] {
         overflow-y: auto;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
+    }
+
+    /* Administrador: barra superior a todo lo ancho; debajo, menú lateral
+       fijo a la izquierda y la pantalla activa a la derecha. */
+    body.role-admin[data-tab] .app {
+        grid-template-columns: 232px minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    body.role-admin[data-tab] .app-bar {
+        grid-column: 1 / -1;
     }
 
     /* Venta: la pantalla no se desplaza; solo se desplazan los productos y el carrito. */
@@ -2114,7 +2211,8 @@ input[type="checkbox"] {
         padding-bottom: 4px;
     }
 
-    .tab {
+    .tab,
+    .admin-nav-group-toggle {
         min-height: 38px;
     }
 
@@ -2177,6 +2275,7 @@ input[type="checkbox"] {
 
 @media (min-width: 700px) and (max-height: 720px) and (pointer: coarse) {
     .tab,
+    .admin-nav-group-toggle,
     .category-tab,
     .remove-btn {
         min-height: var(--tap);
@@ -2369,6 +2468,68 @@ input[type="checkbox"] {
 
     .sale-modal-actions .btn {
         width: 100%;
+    }
+}
+
+/* Celular, administrador: el menú lateral se vuelve un cajón que entra desde
+   la izquierda con el botón de menú; la barra superior queda fija arriba. */
+@media (max-width: 699px) {
+    body.role-admin .app-bar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+    }
+
+    .admin-nav-toggle {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: var(--tap);
+        height: var(--tap);
+        padding: 0;
+        border: 1px solid rgba(255, 248, 237, 0.5);
+        border-radius: 10px;
+        background: rgba(255, 248, 237, 0.12);
+        color: var(--on-dark);
+        cursor: pointer;
+    }
+
+    .admin-nav-toggle .icon {
+        width: 22px;
+        height: 22px;
+    }
+
+    .admin-nav {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 100;
+        width: min(280px, 85vw);
+        padding-top: calc(16px + env(safe-area-inset-top));
+        box-shadow: var(--shadow-lg);
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition: transform 220ms var(--ease-out), visibility 0s linear 220ms;
+    }
+
+    body.admin-nav-open {
+        overflow: hidden;
+    }
+
+    body.admin-nav-open .admin-nav {
+        transform: none;
+        visibility: visible;
+        transition: transform 220ms var(--ease-out);
+    }
+
+    body.admin-nav-open .admin-nav-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: rgba(30, 20, 15, 0.45);
     }
 }
 

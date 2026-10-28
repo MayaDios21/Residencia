@@ -24,17 +24,18 @@ function selectLoginRole(role) {
     submit.textContent = isAdmin ? 'Entrar al panel' : 'Entrar a caja';
 }
 
-/** Muestra las pestañas disponibles para el perfil y el nombre del usuario. */
+/**
+ * Muestra la navegación del perfil (pestañas del cajero o menú lateral del
+ * administrador) y el nombre del usuario.
+ */
 function updateRoleNavigation() {
     const isAdmin = adminSession?.role === 'admin';
-    ADMIN_TABS.forEach(tabName => {
-        const button = document.querySelector(`.tab[data-tab="${tabName}"]`);
-        if (button) button.hidden = !isAdmin;
-    });
-    CASHIER_TABS.forEach(tabName => {
-        const button = document.querySelector(`.tab[data-tab="${tabName}"]`);
-        if (button) button.hidden = isAdmin;
-    });
+    document.getElementById('cashier-nav').hidden = isAdmin;
+    document.getElementById('admin-nav').hidden = !isAdmin;
+    document.getElementById('admin-nav-toggle').hidden = !isAdmin;
+    // La clase activa el diseño de dos columnas (menú + pantalla) en el CSS.
+    document.body.classList.toggle('role-admin', isAdmin);
+    closeAdminNav();
     document.getElementById('session-role').textContent = isAdmin ? 'Administrador' : 'Cajero';
     document.getElementById('session-user').textContent = adminSession.displayName;
     // Las pestañas de categoría de Venta cambian según el rol ("+ Nueva categoría").

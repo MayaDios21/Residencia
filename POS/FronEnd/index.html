@@ -8,7 +8,8 @@
     Mapa de secciones:
     1. Carga de sesión e inicio de sesión.
     2. Barra superior: logo, negocio, fecha, usuario y cierre de sesión.
-    3. Pestañas: navegación entre pantallas (las de administrador se muestran por rol).
+    3. Navegación por rol: barra de pestañas del cajero y menú lateral con
+       grupos desplegables del administrador.
     4. Pantallas: panel, venta, configuración, productos, almacén, categorías,
        ventas y cierre de caja.
     5. Modales y avisos.
@@ -67,6 +68,11 @@
     <div class="app" id="app-container" hidden>
         <!-- Barra superior: logo y nombre a la izquierda; fecha y sesión a la derecha. -->
         <header class="app-bar">
+            <!-- Solo administrador en celular: abre y cierra el menú lateral. -->
+            <button class="admin-nav-toggle" id="admin-nav-toggle" type="button" aria-controls="admin-nav" aria-expanded="false" onclick="toggleAdminNav()" hidden>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                <span class="visually-hidden">Menú</span>
+            </button>
             <div class="brand">
                 <img src="../Public/assets/imagenes/Logo%20tcos%20el%20compita.jpg" alt="Tacos de Birria El Compita" class="brand-logo" width="72" height="48">
                 <div class="brand-text">
@@ -90,11 +96,8 @@
             </div>
         </header>
 
-        <!-- Navegación: cada botón activa una pantalla mediante showTab(). -->
-        <nav class="tabs" aria-label="Navegación principal">
-            <button class="tab" type="button" data-tab="admin-dashboard" onclick="showTab('admin-dashboard')" hidden>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Panel
-            </button>
+        <!-- Navegación del cajero: cada botón activa una pantalla mediante showTab(). -->
+        <nav class="tabs" id="cashier-nav" aria-label="Navegación principal">
             <button class="tab active" type="button" data-tab="pos" onclick="showTab('pos')">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.4a1.5 1.5 0 0 0 1.5 1.1h8.9a1.5 1.5 0 0 0 1.5-1.2L21 8H6"/></svg>Venta
             </button>
@@ -104,22 +107,55 @@
             <button class="tab" type="button" data-tab="sales" onclick="showTab('sales')">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Ventas
             </button>
-            <button class="tab" type="button" data-tab="admin" onclick="showTab('admin')" hidden>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v7a3 3 0 0 0 6 0V3"/><path d="M9 3v18"/><path d="M17 3c-2 2-2 6 0 8v10"/></svg>Productos
-            </button>
-            <button class="tab" type="button" data-tab="warehouse" onclick="showTab('warehouse')" hidden>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>Almacén
-            </button>
-            <button class="tab" type="button" data-tab="categories" onclick="showTab('categories')" hidden>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Categorías
-            </button>
-            <button class="tab" type="button" data-tab="settings" onclick="showTab('settings')" hidden>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Configuración
-            </button>
-            <button class="tab" type="button" data-tab="users" onclick="showTab('users')" hidden>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg>Usuarios
-            </button>
         </nav>
+
+        <!-- Navegación del administrador: menú lateral con grupos desplegables.
+             Los botones usan las mismas data-tab que showTab() y se abre solo
+             el grupo de la pantalla activa. En celular se muestra como cajón. -->
+        <nav class="admin-nav" id="admin-nav" aria-label="Menú de administración" hidden>
+            <button class="tab" type="button" data-tab="admin-dashboard" onclick="showTab('admin-dashboard')">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Panel
+            </button>
+
+            <div class="admin-nav-group">
+                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-sales" onclick="toggleAdminNavGroup(this)">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+                    <span>Ventas</span>
+                    <svg class="icon admin-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+                <div class="admin-nav-items" id="admin-nav-sales" hidden>
+                    <button class="tab" type="button" data-tab="sales" onclick="showTab('sales')">Historial</button>
+                    <button class="tab" type="button" data-tab="cashbox" onclick="showTab('cashbox')">Cierre de caja</button>
+                </div>
+            </div>
+
+            <div class="admin-nav-group">
+                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-inventory" onclick="toggleAdminNavGroup(this)">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
+                    <span>Inventario</span>
+                    <svg class="icon admin-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+                <div class="admin-nav-items" id="admin-nav-inventory" hidden>
+                    <button class="tab" type="button" data-tab="admin" onclick="showTab('admin')">Productos</button>
+                    <button class="tab" type="button" data-tab="categories" onclick="showTab('categories')">Categorías</button>
+                    <button class="tab" type="button" data-tab="warehouse" onclick="showTab('warehouse')">Almacén</button>
+                </div>
+            </div>
+
+            <div class="admin-nav-group">
+                <button class="admin-nav-group-toggle" type="button" aria-expanded="false" aria-controls="admin-nav-system" onclick="toggleAdminNavGroup(this)">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                    <span>Sistema</span>
+                    <svg class="icon admin-nav-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+                <div class="admin-nav-items" id="admin-nav-system" hidden>
+                    <button class="tab" type="button" data-tab="users" onclick="showTab('users')">Usuarios</button>
+                    <button class="tab" type="button" data-tab="settings" onclick="showTab('settings')">Configuración</button>
+                </div>
+            </div>
+        </nav>
+        <!-- Fondo oscuro detrás del menú en celular; tocarlo cierra el menú. -->
+        <div class="admin-nav-backdrop" onclick="closeAdminNav()" aria-hidden="true"></div>
 
         <main class="app-content">
             <!-- Panel administrativo: sus indicadores se calculan con el historial local actual. -->

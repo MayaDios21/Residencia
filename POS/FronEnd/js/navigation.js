@@ -53,6 +53,10 @@ function showTab(tabName) {
             tab.removeAttribute('aria-current');
         }
     });
+    if (isAdmin) {
+        expandAdminNavGroupFor(tabName);
+        closeAdminNav();
+    }
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
     const content = document.getElementById(`${tabName}-tab`);
@@ -84,3 +88,54 @@ function showTab(tabName) {
         loadUsers();
     }
 }
+
+/*
+ * MENÚ LATERAL DEL ADMINISTRADOR
+ * Grupos desplegables (Ventas, Inventario, Sistema) y, en celular, el cajón
+ * que se abre con el botón de menú de la barra superior.
+ */
+
+/**
+ * Abre o cierra un grupo del menú lateral.
+ * @param {HTMLButtonElement} toggle - Botón del grupo (lleva aria-controls).
+ * @param {boolean} [expanded] - Estado deseado; si se omite, alterna el actual.
+ */
+function toggleAdminNavGroup(toggle, expanded) {
+    const isExpanded = expanded ?? toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(isExpanded));
+    document.getElementById(toggle.getAttribute('aria-controls')).hidden = !isExpanded;
+}
+
+/**
+ * Abre el grupo que contiene la pantalla indicada para que la opción activa
+ * siempre quede a la vista. Los demás grupos se quedan como estaban.
+ * @param {string} tabName - Nombre de la pantalla (data-tab).
+ */
+function expandAdminNavGroupFor(tabName) {
+    const button = document.querySelector(`#admin-nav .tab[data-tab="${tabName}"]`);
+    const group = button?.closest('.admin-nav-group');
+    if (group) toggleAdminNavGroup(group.querySelector('.admin-nav-group-toggle'), true);
+}
+
+/**
+ * Abre o cierra el menú lateral en celular. En pantallas anchas el menú
+ * siempre está visible y la clase no tiene efecto.
+ * @param {boolean} [open] - Estado deseado; si se omite, alterna el actual.
+ */
+function toggleAdminNav(open) {
+    const isOpen = open ?? !document.body.classList.contains('admin-nav-open');
+    document.body.classList.toggle('admin-nav-open', isOpen);
+    document.getElementById('admin-nav-toggle').setAttribute('aria-expanded', String(isOpen));
+}
+
+/** Cierra el menú lateral en celular (al elegir una opción, tocar el fondo o pulsar Esc). */
+function closeAdminNav() {
+    toggleAdminNav(false);
+}
+
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && document.body.classList.contains('admin-nav-open')) {
+        closeAdminNav();
+        document.getElementById('admin-nav-toggle').focus();
+    }
+});
