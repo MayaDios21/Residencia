@@ -73,8 +73,6 @@ let salesHistory = [];
 // Sesión activa ({ role, displayName }); se guarda en localStorage para sobrevivir recargas.
 let adminSession = null;
 
-let selectedLoginRole = 'cashier';
-
 const SESSION_STORAGE_KEY = 'pos_session';
 
 const CURRENT_TAB_STORAGE_KEY = 'pos_current_tab';

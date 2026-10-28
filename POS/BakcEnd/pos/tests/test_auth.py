@@ -28,34 +28,46 @@ class AuthenticationTests(APITestCase):
             role=UserProfile.Role.CASHIER,
         )
 
-    def test_cashier_can_login_with_matching_role(self):
+    def test_cashier_login_returns_role_from_profile(self):
+        """El cajero entra solo con usuario y contraseña; el rol sale de su perfil."""
         response = self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': 'correct-password',
-            'role': UserProfile.Role.CASHIER,
         })
 
         self.assertEqual(response.status_code, 200)
         self.assertIn('token', response.data)
         self.assertEqual(response.data['user']['role'], UserProfile.Role.CASHIER)
 
-    def test_login_rejects_wrong_role(self):
+    def test_admin_login_returns_role_from_profile(self):
+        """El administrador entra sin elegir rol y recibe el de administrador."""
+        admin = User.objects.create_user(username='admin', password='correct-password')
+        UserProfile.objects.create(user=admin, role=UserProfile.Role.ADMIN)
+
+        response = self.client.post('/api/auth/login/', {
+            'username': 'admin',
+            'password': 'correct-password',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('token', response.data)
+        self.assertEqual(response.data['user']['role'], UserProfile.Role.ADMIN)
+
+    def test_login_ignores_role_sent_by_client(self):
+        """Mandar role=admin no sube los permisos de un cajero: manda el perfil."""
         response = self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': 'correct-password',
             'role': UserProfile.Role.ADMIN,
         })
 
-        # Mismo mensaje que una contraseña incorrecta: no confirma que acertó.
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data['detail'], INVALID_LOGIN_MESSAGE)
-        self.assertNotIn('token', response.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['user']['role'], UserProfile.Role.CASHIER)
 
     def test_login_rejects_invalid_password(self):
         response = self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': 'wrong-password',
-            'role': UserProfile.Role.CASHIER,
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -71,7 +83,6 @@ class AuthenticationTests(APITestCase):
         response = self.client.post('/api/auth/login/', {
             'username': 'without-profile',
             'password': 'correct-password',
-            'role': UserProfile.Role.CASHIER,
         })
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -81,7 +92,6 @@ class AuthenticationTests(APITestCase):
         return self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': 'wrong-password',
-            'role': UserProfile.Role.CASHIER,
         })
 
     @override_settings(LOGIN_MAX_FAILED_ATTEMPTS=3)
@@ -94,7 +104,6 @@ class AuthenticationTests(APITestCase):
         correct = self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': 'correct-password',
-            'role': UserProfile.Role.CASHIER,
         })
 
         self.assertEqual(blocked.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
@@ -106,7 +115,6 @@ class AuthenticationTests(APITestCase):
             response = self.client.post('/api/auth/login/', {
                 'username': 'cashier',
                 'password': 'correct-password',
-                'role': UserProfile.Role.CASHIER,
             })
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -122,7 +130,6 @@ class AuthenticationTests(APITestCase):
         token = self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': 'correct-password',
-            'role': UserProfile.Role.CASHIER,
         }).data['token']
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
 
@@ -141,7 +148,6 @@ class AuthenticationTests(APITestCase):
         token = self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': 'correct-password',
-            'role': UserProfile.Role.CASHIER,
         }).data['token']
         self.client.credentials(HTTP_AUTHORIZATION=f'Token {token}')
 

@@ -18,7 +18,7 @@ from .serializers import LoginSerializer, UserSerializer
 
 # Un mismo mensaje para todos los fallos, para no revelar si el usuario existe
 # o si la contraseña era correcta.
-INVALID_LOGIN_MESSAGE = 'Usuario, contraseña o tipo de cuenta incorrectos.'
+INVALID_LOGIN_MESSAGE = 'Usuario o contraseña incorrectos.'
 
 
 def get_failed_login_key(request):
@@ -36,11 +36,17 @@ def register_failed_login(request):
 
 
 class LoginView(ObtainAuthToken):
-    """Inicio de sesión por rol, con límite de intentos fallidos por dirección IP."""
+    """Inicio de sesión con usuario y contraseña, con límite de intentos fallidos
+    por dirección IP. El rol (cajero o administrador) se toma del perfil.
+    """
 
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
+        """Valida las credenciales y devuelve el token y los datos del usuario,
+        incluido su rol. Rechaza a usuarios sin perfil y bloquea temporalmente
+        la IP tras demasiados intentos fallidos.
+        """
         if cache.get(get_failed_login_key(request), 0) >= settings.LOGIN_MAX_FAILED_ATTEMPTS:
             return Response(
                 {'detail': 'Demasiados intentos fallidos. Espera un minuto e intenta de nuevo.'},
@@ -54,8 +60,9 @@ class LoginView(ObtainAuthToken):
             username=serializer.validated_data['username'],
             password=serializer.validated_data['password'],
         )
+        # Sin perfil no hay rol con el cual entrar: se trata como credenciales inválidas.
         profile = getattr(user, 'profile', None) if user else None
-        if profile is None or profile.role != serializer.validated_data['role']:
+        if profile is None:
             register_failed_login(request)
             return Response(
                 {'detail': INVALID_LOGIN_MESSAGE},

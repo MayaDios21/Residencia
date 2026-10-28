@@ -47,19 +47,16 @@
             </div>
             <div class="entry-form-wrap">
                 <span class="eyebrow">Acceso al sistema</span>
-                <h2 id="login-heading">Inicio de sesión · Cajero</h2>
-                <!-- Enter (teclado físico) o "Ir" (teclado del iPad) envían el formulario. -->
+                <h2 id="login-heading">Inicio de sesión</h2>
+                <!-- Enter (teclado físico) o "Ir" (teclado del iPad) envían el formulario.
+                     No se elige rol: el servidor lo identifica con el usuario. -->
                 <form id="entry-login-form" autocomplete="off" onsubmit="handleLoginSubmit(event)">
-                    <div class="login-role-selector" role="group" aria-label="Tipo de cuenta">
-                        <button class="login-role-button active" id="login-role-cashier" type="button" aria-pressed="true" onclick="selectLoginRole('cashier')">Cajero</button>
-                        <button class="login-role-button" id="login-role-admin" type="button" aria-pressed="false" onclick="selectLoginRole('admin')">Administrador</button>
-                    </div>
                     <label for="login-username">Usuario</label>
                     <input id="login-username" name="access-identifier" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" required>
                     <label for="login-password">Contraseña</label>
                     <input id="login-password" name="access-secret" type="password" autocomplete="new-password" enterkeyhint="go" required>
                     <p class="entry-connection-note">Acceso seguro mediante el servidor local de Django.</p>
-                    <button class="btn entry-submit" id="entry-submit" type="submit">Entrar a caja</button>
+                    <button class="btn entry-submit" id="entry-submit" type="submit">Entrar</button>
                 </form>
             </div>
         </section>

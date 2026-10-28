@@ -164,15 +164,16 @@ No abras el archivo directamente con una ruta file:/// si puedes evitarlo;
 usar una URL http://local garantiza que todos los recursos se carguen igual
 en Chrome, Edge y otros navegadores.
 
+No hay que elegir si se entra como cajero o administrador: el sistema
+identifica el rol con el usuario y abre las pantallas que le corresponden.
+
 Para probar como administrador:
 
-  Seleccionar: Administrador
   Usuario: admin
   Contraseña: 1234
 
 Para probar como cajero:
 
-  Seleccionar: Cajero
   Usuario: cajero
   Contraseña: 1234
 
@@ -427,8 +428,8 @@ No aparecen las imagenes:
 Credenciales incorrectas:
 
   - Ejecutar nuevamente los comandos de la seccion 4.
-  - Confirmar que se selecciono el rol correcto. Por seguridad, el mensaje
-    es el mismo si falla el usuario, la contraseña o el tipo de cuenta.
+  - Por seguridad, el mensaje es el mismo si falla el usuario o la
+    contraseña, para no revelar cual de los dos estaba mal.
 
 "Demasiados intentos fallidos. Espera un minuto":
 

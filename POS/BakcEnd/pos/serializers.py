@@ -25,9 +25,9 @@ from .models import (
 
 
 class LoginSerializer(serializers.Serializer):
+    """Credenciales de inicio de sesión. El rol no se pide: sale del perfil del usuario."""
     username = serializers.CharField()
     password = serializers.CharField(write_only=True)
-    role = serializers.ChoiceField(choices=UserProfile.Role.choices)
 
 
 class UserSerializer(serializers.ModelSerializer):

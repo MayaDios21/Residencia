@@ -70,7 +70,6 @@ class UserManagementTests(APITestCase):
         login = self.client.post('/api/auth/login/', {
             'username': 'nuevo',
             'password': STRONG_PASSWORD,
-            'role': 'cashier',
         })
         self.assertEqual(login.status_code, status.HTTP_200_OK)
 
@@ -120,7 +119,6 @@ class UserManagementTests(APITestCase):
         login = self.client.post('/api/auth/login/', {
             'username': 'cashier',
             'password': STRONG_PASSWORD,
-            'role': 'cashier',
         })
         self.assertEqual(login.status_code, status.HTTP_400_BAD_REQUEST)
 

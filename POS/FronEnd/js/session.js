@@ -5,26 +5,6 @@
  */
 
 /**
- * Actualiza el perfil seleccionado y los textos del formulario de acceso.
- * @param {'cashier'|'admin'} role - Perfil local que se abrirá al continuar.
- */
-function selectLoginRole(role) {
-    selectedLoginRole = role === 'admin' ? 'admin' : 'cashier';
-    const isAdmin = selectedLoginRole === 'admin';
-    const cashierButton = document.getElementById('login-role-cashier');
-    const adminButton = document.getElementById('login-role-admin');
-    const heading = document.getElementById('login-heading');
-    const submit = document.getElementById('entry-submit');
-
-    cashierButton.classList.toggle('active', !isAdmin);
-    cashierButton.setAttribute('aria-pressed', String(!isAdmin));
-    adminButton.classList.toggle('active', isAdmin);
-    adminButton.setAttribute('aria-pressed', String(isAdmin));
-    heading.textContent = `Inicio de sesión · ${isAdmin ? 'Administrador' : 'Cajero'}`;
-    submit.textContent = isAdmin ? 'Entrar al panel' : 'Entrar a caja';
-}
-
-/**
  * Muestra la navegación del perfil (pestañas del cajero o menú lateral del
  * administrador) y el nombre del usuario.
  */
@@ -58,11 +38,8 @@ async function startApp() {
         // No reutilizar tokens que hayan quedado guardados en otra sesión local.
         localStorage.removeItem(AUTH_TOKEN_KEY);
         clearSessionStorage();
-        const user = await loginInApi({
-            username,
-            password,
-            role: selectedLoginRole
-        });
+        // El servidor devuelve el rol del usuario; con él se decide qué pantallas ver.
+        const user = await loginInApi({ username, password });
         adminSession = {
             role: user.role,
             displayName: user.username
@@ -183,5 +160,4 @@ async function logoutSession() {
     showLoginScreen();
     document.getElementById('entry-login-form').reset();
     document.getElementById('login-username').focus();
-    selectLoginRole('cashier');
 }

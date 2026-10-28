@@ -55,8 +55,9 @@ async function apiRequest(path, options = {}) {
 }
 
 /**
- * Inicia sesión en el backend y guarda el token recibido.
- * @param {{username: string, password: string, role: string}} credentials - Datos del formulario de acceso.
+ * Inicia sesión en el backend y guarda el token recibido. No se manda rol:
+ * el servidor lo toma del perfil del usuario y lo devuelve en la respuesta.
+ * @param {{username: string, password: string}} credentials - Datos del formulario de acceso.
  * @returns {Promise<Object>} Usuario autenticado (id, username, role…).
  */
 async function loginInApi(credentials) {

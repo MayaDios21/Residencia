@@ -547,34 +547,6 @@ input[type="checkbox"] {
     gap: 10px;
 }
 
-.login-role-selector {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    margin-bottom: 12px;
-    padding: 4px;
-    border: 1px solid #e2d5c8;
-    border-radius: 10px;
-    background: #f2ebe2;
-}
-
-.login-role-button {
-    min-height: var(--tap);
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: #62584f;
-    font-size: 0.92rem;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.login-role-button.active {
-    background: #fffdf9;
-    color: var(--brand);
-    box-shadow: 0 1px 4px rgba(52, 38, 29, 0.15);
-}
-
 .entry-form-wrap form > label {
     margin-top: 8px;
     color: var(--ink-2);

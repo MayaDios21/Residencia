@@ -36,11 +36,10 @@ class CatalogApiTests(APITestCase):
             color='#8b2e35',
         )
 
-    def authenticate_as(self, user, role):
+    def authenticate_as(self, user):
         response = self.client.post('/api/auth/login/', {
             'username': user.username,
             'password': 'correct-password',
-            'role': role,
         })
         self.client.credentials(
             HTTP_AUTHORIZATION=f"Token {response.data['token']}",
@@ -52,7 +51,7 @@ class CatalogApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_cashier_can_list_categories_and_products(self):
-        self.authenticate_as(self.cashier, UserProfile.Role.CASHIER)
+        self.authenticate_as(self.cashier)
 
         categories_response = self.client.get('/api/categorias/')
         products_response = self.client.get('/api/productos/')
@@ -62,7 +61,7 @@ class CatalogApiTests(APITestCase):
         self.assertEqual(categories_response.data[0]['name'], 'Tacos')
 
     def test_cashier_cannot_modify_catalog(self):
-        self.authenticate_as(self.cashier, UserProfile.Role.CASHIER)
+        self.authenticate_as(self.cashier)
 
         response = self.client.post('/api/categorias/', {
             'name': 'Bebidas',
@@ -72,7 +71,7 @@ class CatalogApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_admin_can_create_category_and_product(self):
-        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+        self.authenticate_as(self.admin)
 
         category_response = self.client.post('/api/categorias/', {
             'name': 'Bebidas',
@@ -94,7 +93,7 @@ class CatalogApiTests(APITestCase):
         )
 
     def test_product_rejects_negative_price(self):
-        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+        self.authenticate_as(self.admin)
 
         response = self.client.post('/api/productos/', {
             'name': 'Producto inválido',
@@ -106,7 +105,7 @@ class CatalogApiTests(APITestCase):
         self.assertIn('price', response.data)
 
     def test_category_name_must_be_unique(self):
-        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+        self.authenticate_as(self.admin)
 
         response = self.client.post('/api/categorias/', {
             'name': 'Tacos',
@@ -122,7 +121,7 @@ class CatalogApiTests(APITestCase):
             category=self.category,
             price='70.00',
         )
-        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+        self.authenticate_as(self.admin)
 
         response = self.client.patch(
             f'/api/productos/{product.id}/',
@@ -140,7 +139,7 @@ class CatalogApiTests(APITestCase):
             category=self.category,
             price='25.00',
         )
-        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+        self.authenticate_as(self.admin)
 
         response = self.client.delete(f'/api/categorias/{self.category.id}/')
 
@@ -150,7 +149,7 @@ class CatalogApiTests(APITestCase):
 
     def test_admin_can_delete_product_without_history(self):
         product = Product.objects.create(name='Producto nuevo', price='10.00')
-        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+        self.authenticate_as(self.admin)
 
         response = self.client.delete(f'/api/productos/{product.id}/')
 
@@ -160,7 +159,7 @@ class CatalogApiTests(APITestCase):
     def test_product_with_inventory_history_cannot_be_deleted(self):
         product = Product.objects.create(name='Quesabirria', price='45.00')
         apply_stock_movement(product.id, 'entrada', 5, self.admin)
-        self.authenticate_as(self.admin, UserProfile.Role.ADMIN)
+        self.authenticate_as(self.admin)
 
         response = self.client.delete(f'/api/productos/{product.id}/')
 
