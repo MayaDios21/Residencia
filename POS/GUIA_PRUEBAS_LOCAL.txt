@@ -55,6 +55,16 @@ archivos nuevos en BakcEnd\pos\migrations, volver a ejecutar:
 La base db.sqlite3 es local y esta excluida de Git. Cada integrante debe
 crear sus propios usuarios en su computadora.
 
+Cargar el menu inicial (categorias y productos de El Compita, los mismos que
+trae el frontend en state.js, con sus imagenes):
+
+  python manage.py cargar_menu
+
+Se puede correr las veces que sea: solo crea lo que falta, no duplica y no
+cambia precios ni colores que ya se hayan editado. Muestra cuantas categorias
+y productos creo. Mientras el frontend no se conecte al catalogo de la API
+(Fase 7), estos productos solo se ven en /admin/ y en /api/productos/.
+
 Para validar PostgreSQL en desarrollo, configurar `DATABASE_URL` en la
 terminal del backend antes de ejecutar Django. No escribir credenciales reales
 en `.env.example` ni subir un archivo `.env`:
@@ -461,7 +471,7 @@ El resultado esperado es:
 Las pruebas estan en la carpeta BakcEnd\pos\tests\ (una por modulo:
 test_auth.py, test_catalog.py, test_inventory.py, test_settings.py,
 test_cashbox.py, test_sales.py, test_sales_history.py, test_users.py,
-test_restock.py, test_reports.py).
+test_restock.py, test_reports.py, test_cargar_menu.py).
 
 
 IMPORTANTE
