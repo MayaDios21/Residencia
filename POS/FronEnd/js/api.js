@@ -1,9 +1,10 @@
 /*
  * COMUNICACIÓN CON EL BACKEND
  * Dirección de la API de Django, token de sesión y funciones para llamarla.
- * El inicio de sesión y la gestión de usuarios siempre usan la API; ventas,
- * inventario y catálogo solo cuando USE_API es true (mientras tanto se
- * guardan en el navegador). Es el primer módulo que carga index.html.
+ * Todos los datos (catálogo, configuración, caja, ventas, inventario,
+ * reportes y usuarios) viven en el servidor; en el navegador solo quedan la
+ * sesión, la pantalla abierta y el carrito en curso. Sin servidor no se
+ * registra nada. Es el primer módulo que carga index.html.
  */
 
 /**
@@ -20,7 +21,6 @@ function resolveApiUrl() {
 }
 
 const API_URL = resolveApiUrl();
-const USE_API = false;
 const AUTH_TOKEN_KEY = 'pos_auth_token';
 
 /** Devuelve el primer mensaje de validación de DRF ({campo: ["mensaje"]}). */
@@ -422,8 +422,10 @@ async function cancelSaleInApi(saleId, reason) {
     });
 }
 
-// Gestión de usuarios (solo administrador). Siempre usa la API, sin importar
-// USE_API, porque los usuarios solo existen en el backend.
+/**
+ * Lista las cuentas del sistema (solo administrador).
+ * @returns {Promise<Object[]>}
+ */
 async function getUsersFromApi() {
     return apiRequest('/usuarios/');
 }

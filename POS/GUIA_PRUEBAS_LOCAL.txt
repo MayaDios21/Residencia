@@ -190,19 +190,52 @@ Para probar como cajero:
 
 8. PRUEBAS RECOMENDADAS
 
-Administrador:
+Desde la Fase 7 TODAS las pantallas guardan en la base de datos (catalogo,
+configuracion, caja, ventas, almacen e insumos). En el navegador solo quedan
+la sesion, la pantalla abierta y el carrito en curso.
 
-  - Iniciar sesion.
-  - Revisar el panel.
-  - Revisar productos, categorias, almacen y configuracion.
-  - Cerrar sesion.
+IMPORTANTE: despues de bajar cambios (git pull) o de cambiar archivos del
+frontend, recargar con Ctrl + Shift + R en cada ventana y en el celular. Si
+el navegador usa una copia vieja de los archivos, las pruebas no sirven.
+
+Recorrido completo del sistema (Fase 7):
+
+  Preparacion: cargar el menu (seccion 3, "manage.py cargar_menu") y usar
+  dos ventanas: una normal y una de incognito (Ctrl + Shift + N), o el
+  celular (seccion 14).
+
+  1. Ventana 1, cajero: abrir caja con un fondo (por ejemplo 500).
+  2. Ventana 2, cajero: NO debe pedir abrir caja (ya esta abierta en el
+     servidor).
+  3. Ventana 1: vender dos o tres productos. Cada venta muestra
+     "Venta #N registrada por $...". "Ventas de hoy" se actualiza.
+  4. Recargar la pagina: las ventas siguen ahi (ya no dependen del
+     navegador).
+  5. Ventana 2, admin: en Ventas > Historial aparecen las ventas del cajero.
+     Probar "Filtrar por", el rango de fechas y el buscador (#numero o
+     producto), Exportar y Verificar. El Panel muestra los mismos totales.
+  6. Admin: cancelar una venta (motivo opcional). Queda tachada como
+     "Cancelada", deja de contar en los totales y el stock de los
+     productos controlados (Agua, Coca) regresa.
+  7. Admin: cambiar el IVA. En la ventana del cajero, recargar y agregar un
+     producto al carrito: debe usar el IVA nuevo. Regresar el IVA a 8 %.
+  8. Admin, Almacen: agregar un insumo, darle una entrada y una salida,
+     cambiar su "Minimo". Si queda bajo, aparece en el Panel en
+     "Inventario por revisar" con cuanto pedir.
+  9. Cajero: cerrar la caja. El cierre muestra las ventas reales del dia
+     (sin canceladas). Venta muestra "Jornada cerrada" en las dos ventanas.
+  10. Apagar Django (Ctrl + C en la Terminal 1) e intentar vender: debe
+      salir "Sin conexion con el servidor: la venta NO se registro" y el
+      carrito se queda como estaba. Volver a encender Django.
+
+  Al cerrar la caja de hoy ya no se puede abrir otra caja hoy en la base
+  local. Para repetir la prueba el mismo dia, borrar la jornada de prueba
+  (y sus ventas) desde /admin/ o pedirlo al equipo del backend.
 
 Backend desde el navegador (API navegable):
 
-  Mientras USE_API sea false en el archivo FronEnd\js\api.js, las pantallas
-  del sistema (Almacen, Caja, Venta, Configuracion) guardan solo en el
-  navegador. Para probar lo que se guarda en la base de datos se usa la
-  API navegable de Django, que solo funciona con DJANGO_DEBUG=True.
+  Sirve para revisar directamente lo que guarda el servidor, sin pasar por
+  las pantallas. Solo funciona con DJANGO_DEBUG=True.
 
   Preparacion:
 
@@ -298,14 +331,14 @@ Backend desde el navegador (API navegable):
 
          python manage.py shell -c "from django.contrib.auth.models import User; User.objects.filter(username='cajero').update(is_staff=True)"
 
-    Las ventas ya no se borran: el boton "Borrar historial" del sistema
-    solo limpia el navegador mientras USE_API sea false. En la base de datos
-    las ventas se cancelan, para que quede registro.
+    Las ventas no se borran: se cancelan, para que quede registro. En el
+    sistema, el administrador lo hace con el boton "Cancelar" de cada venta
+    en Ventas > Historial.
 
   Usuarios (Fase 4) - en el sistema, no en la API navegable:
 
-    Esta pantalla SI usa el backend aunque USE_API sea false, porque los
-    usuarios solo existen en la base de datos (igual que el inicio de sesion).
+    Los usuarios solo existen en la base de datos (igual que el inicio de
+    sesion).
 
     1. Abrir http://127.0.0.1:8080/FronEnd/index.html y entrar como
        Administrador (admin / 1234). Debe aparecer la pestaña "Usuarios".
@@ -420,6 +453,21 @@ En cada terminal donde este corriendo un servidor, presionar:
 
 
 10. PROBLEMAS COMUNES
+
+Las ventas o cambios no llegan al servidor, o la pantalla se ve como antes:
+
+  - El navegador esta usando una copia vieja de los archivos. Recargar con
+    Ctrl + Shift + R en cada ventana (y en el celular).
+  - Una venta bien registrada dice "Venta #N registrada por $...".
+
+La pantalla de Venta sale sin productos:
+
+  - Falta cargar el menu: "manage.py cargar_menu" (seccion 3).
+
+"No se pudo cargar el catalogo" o "Sin conexion con el servidor":
+
+  - Django no esta corriendo o no se alcanza. Sin servidor el sistema no
+    registra nada (a proposito, para que el corte de caja cuadre).
 
 Mensaje "Failed to fetch":
 
@@ -564,11 +612,35 @@ Comandos contra Supabase desde la PC (migraciones, cache y usuarios)
   DATABASE_URL apuntando a Supabase. La cadena NUNCA se guarda en un archivo
   del repositorio; solo se pega en la terminal.
 
+  Obtener la cadena: Django entra a Supabase con su propio usuario "django".
+  Su contrasena no esta guardada en ningun lado (solo en Vercel, como
+  secreto que no se puede leer), asi que cada vez que haga falta se pone
+  una nueva:
+
+    1. Supabase > proyecto pos-el-compita > SQL Editor, ejecutar (con una
+       contrasena nueva de solo letras y numeros):
+
+         alter role django with password 'ContrasenaNueva123';
+
+    2. La cadena queda asi (cambiando solo la contrasena):
+
+         postgresql://django.gerfgmsigjpgxwokblrh:ContrasenaNueva123@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require
+
+    3. Pegarla en Vercel > pos-el-compita > Settings > Environment
+       Variables > DATABASE_URL (Edit) y volver a desplegar (Deployments >
+       el ultimo > Redeploy). Mientras no se haga, la version publicada no
+       puede entrar a la base.
+
   cd C:\Users\dmaya\Residencia\POS\BakcEnd
   $env:DJANGO_SECRET_KEY="local-development-key"
-  $env:DATABASE_URL="<cadena del pooler de Supabase, puerto 6543, con ?sslmode=require>"
+  $env:DATABASE_URL="<la cadena del paso 2>"
   C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py migrate
   C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py createcachetable
+  C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py cargar_menu
+
+  "cargar_menu" crea el menu inicial (no duplica ni cambia precios ya
+  editados), "migrate" aplica migraciones nuevas y "createcachetable" no
+  hace nada si la tabla ya existe: se pueden correr siempre.
 
   Crear el administrador y el cajero con contraseñas reales (no 1234). El
   primer comando crea el usuario sin contraseña; "changepassword" la pide dos
@@ -598,8 +670,10 @@ Probar la version publicada
   - La primera peticion tras un rato sin uso tarda 1 a 3 segundos (arranque
     en frio). Supabase gratis pausa el proyecto tras ~1 semana sin actividad;
     se reactiva desde su panel.
-  - Hasta la Fase 7 solo el login y los usuarios usan Supabase; catalogo,
-    caja y ventas siguen guardandose en el navegador de cada equipo.
+  - Desde la Fase 7 todo se guarda en Supabase: lo que se haga en un
+    dispositivo (ventas, caja, catalogo, almacen) se ve en todos los demas.
+    En el navegador solo quedan la sesion y el carrito en curso.
+  - Cada push a main se publica solo en 1 o 2 minutos. Probar en local antes.
 
 
 14. PROBAR DESDE CELULAR O TABLETA (WI-FI LOCAL)

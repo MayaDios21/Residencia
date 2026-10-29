@@ -1083,6 +1083,13 @@ input[type="checkbox"] {
     gap: 8px;
 }
 
+/* En la tabla del almacén los botones (Mínimo, Eliminar) se apilan si no caben. */
+.warehouse-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
 .category-info {
     display: flex;
     flex: 1;
@@ -2079,6 +2086,17 @@ input[type="checkbox"] {
     color: #4f5558;
     line-height: 1.6;
     white-space: pre-line;
+}
+
+/* Campo del modal para pedir un dato (openInputModal en ui.js). */
+.input-modal-field {
+    margin: 0;
+    padding: 16px 24px 0;
+}
+
+.input-modal-error {
+    color: var(--danger);
+    font-weight: 700;
 }
 
 .sale-modal-actions {

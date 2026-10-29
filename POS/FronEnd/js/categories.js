@@ -235,12 +235,19 @@ async function createNewCategory() {
  * Pide el nombre de una nueva categoría desde las pestañas de Venta
  */
 async function promptNewCategory() {
-    const name = prompt('Nombre de la nueva categoría:');
+    const name = await openInputModal({
+        eyebrow: 'Categorías',
+        title: 'Nueva categoría',
+        label: 'Nombre de la categoría',
+        maxLength: 100,
+        confirmLabel: 'Crear categoría',
+        validate: value => (value ? '' : 'Escribe un nombre.')
+    });
     if (!name) return;
 
     const newCategory = await createCategory(name);
     if (newCategory) {
-alert(` Categoría "${newCategory.name}" creada exitosamente!`);
+        alert(` Categoría "${newCategory.name}" creada exitosamente!`);
     }
 }
 
@@ -318,7 +325,16 @@ async function editCategory(categoryId) {
         return;
     }
     
-    const newName = prompt(`Editar nombre de categoría:`, category.name);
+    const newName = await openInputModal({
+        eyebrow: 'Categorías',
+        title: 'Renombrar categoría',
+        message: 'Los productos de esta categoría se quedan en ella con el nombre nuevo.',
+        label: 'Nombre de la categoría',
+        value: category.name,
+        maxLength: 100,
+        confirmLabel: 'Guardar nombre',
+        validate: value => (value ? '' : 'Escribe un nombre.')
+    });
     if (!newName) return;
     
     if (newName.trim() === category.name) {

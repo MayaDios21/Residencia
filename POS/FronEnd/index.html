@@ -55,7 +55,7 @@
                     <input id="login-username" name="access-identifier" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" required>
                     <label for="login-password">Contraseña</label>
                     <input id="login-password" name="access-secret" type="password" autocomplete="new-password" enterkeyhint="go" required>
-                    <p class="entry-connection-note">Acceso seguro mediante el servidor local de Django.</p>
+                    <p class="entry-connection-note">Entra con el usuario y la contraseña que te dio el administrador.</p>
                     <button class="btn entry-submit" id="entry-submit" type="submit">Entrar</button>
                 </form>
             </div>
@@ -789,6 +789,30 @@
                 <button class="btn btn-success sale-confirm-btn" type="button" onclick="confirmActionModal()">Confirmar cambio</button>
             </div>
         </div>
+    </div>
+
+    <!-- Modal para pedir un dato (nombre, stock mínimo, motivo); lo abre openInputModal() en ui.js. -->
+    <div id="input-modal" class="sale-modal" role="dialog" aria-modal="true" aria-labelledby="input-modal-title" hidden>
+        <div class="sale-modal-backdrop" onclick="closeInputModal(null)"></div>
+        <form class="sale-modal-card action-modal-card" id="input-modal-form" onsubmit="submitInputModal(event)" novalidate>
+            <div class="sale-modal-header">
+                <div>
+                    <span class="eyebrow" id="input-modal-eyebrow"></span>
+                    <h2 id="input-modal-title"></h2>
+                </div>
+                <button class="sale-modal-close" type="button" onclick="closeInputModal(null)" aria-label="Cerrar">×</button>
+            </div>
+            <div class="action-modal-message" id="input-modal-message"></div>
+            <div class="form-group input-modal-field">
+                <label for="input-modal-input" id="input-modal-label"></label>
+                <input id="input-modal-input" autocomplete="off">
+                <small class="field-help input-modal-error" id="input-modal-error" hidden></small>
+            </div>
+            <div class="sale-modal-actions">
+                <button class="btn btn-ghost" type="button" onclick="closeInputModal(null)">Cancelar</button>
+                <button class="btn btn-success" type="submit" id="input-modal-confirm">Guardar</button>
+            </div>
+        </form>
     </div>
 
     <!-- Avisos temporales (showNotification). -->

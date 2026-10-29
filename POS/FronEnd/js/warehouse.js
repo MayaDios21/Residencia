@@ -66,10 +66,10 @@ function loadWarehouse() {
             const isActive = item.is_active !== false;
             const status = stock === null ? 'Sin registrar' : stock <= minimum ? 'Stock bajo' : 'Disponible';
             const statusClass = stock === null ? 'unknown' : stock <= minimum ? 'low' : 'available';
+            let action = `<button class="btn btn-ghost btn-compact" type="button" onclick="editMinimumStock('${kind}', ${item.id})" aria-label="Cambiar stock mínimo de ${escapeHtml(item.name)}">Mínimo</button>`;
             // Un insumo con historial no se borra: se desactiva y se puede volver a activar.
-            let action = '';
             if (kind === 'supply') {
-                action = isActive
+                action += isActive
                     ? `<button class="btn btn-ghost btn-compact" type="button" onclick="deleteSupply(${item.id})" aria-label="Eliminar ${escapeHtml(item.name)}">Eliminar</button>`
                     : `<button class="btn btn-ghost btn-compact" type="button" onclick="setSupplyActive(${item.id}, true)" aria-label="Activar ${escapeHtml(item.name)}">Activar</button>`;
             }
@@ -80,7 +80,7 @@ function loadWarehouse() {
                     <td class="num">${stock === null ? '—' : stock}</td>
                     <td class="num">${minimum}</td>
                     <td><span class="warehouse-status ${statusClass}">${status}</span></td>
-                    <td>${action}</td>
+                    <td><div class="row-actions warehouse-actions">${action}</div></td>
                 </tr>
             `;
         }).join('');
@@ -140,6 +140,43 @@ async function addSupply(event) {
     } catch (error) {
         console.error('Error al agregar insumo:', error);
         showNotification(`No se pudo agregar el insumo: ${error.message}`);
+    }
+}
+
+/**
+ * Cambia el stock mínimo de un producto controlado o de un insumo. Es el
+ * límite con el que se marca "Stock bajo" y que usa el algoritmo de
+ * reabastecimiento para sugerir cuánto pedir.
+ * @param {'product'|'supply'} kind - Tipo de artículo.
+ * @param {number} itemId - ID del producto o del insumo.
+ */
+async function editMinimumStock(kind, itemId) {
+    const entry = findWarehouseItem(`${kind}:${itemId}`);
+    if (!entry) return;
+    const { item } = entry;
+    const answer = await openInputModal({
+        eyebrow: 'Almacén',
+        title: 'Cambiar stock mínimo',
+        message: `Cuando "${item.name}" llegue a este número o menos se marca como stock bajo, y el panel sugiere cuánto pedir.`,
+        label: 'Stock mínimo (piezas)',
+        value: String(getProductMinimumStock(item)),
+        type: 'number',
+        confirmLabel: 'Guardar mínimo',
+        validate: value => (/^\d+$/.test(value) ? '' : 'Escribe un número entero de 0 o más.')
+    });
+    if (answer === null) return;
+    const minimum = Number(answer);
+
+    try {
+        const updated = kind === 'product'
+            ? await updateProductInApi(itemId, { minimum_stock: minimum })
+            : await updateSupplyInApi(itemId, { minimum_stock: minimum });
+        item.minimum_stock = updated.minimum_stock;
+        loadWarehouse();
+        showNotification(`Stock mínimo de "${item.name}": ${updated.minimum_stock}`);
+    } catch (error) {
+        console.error('Error al cambiar el stock mínimo:', error);
+        showNotification(`No se pudo cambiar el stock mínimo: ${error.message}`);
     }
 }
 

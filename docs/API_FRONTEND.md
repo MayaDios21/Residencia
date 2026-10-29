@@ -6,6 +6,10 @@ Guía para conectar `FronEnd/js/` con el backend en la Fase 7. Todo lo que apare
 aquí ya existe y tiene pruebas. Si al conectar algo falta un dato, un filtro o un
 campo, avisa al equipo del backend en lugar de calcularlo en el navegador.
 
+**Estado (2026-10-29):** la Fase 7 ya conectó todas las pantallas a esta API
+(`USE_API` ya no existe). Este documento sigue sirviendo como referencia al
+cambiar el frontend.
+
 ## 1. Lo básico
 
 - **Dirección:** `API_URL` en `js/api.js`. En local apunta a
@@ -200,8 +204,9 @@ Alertas (`?todos=true` incluye también los que están bien):
 ```
 `level`: `critico`, `bajo`, `sin_registrar` u `ok`. Vienen ordenados por urgencia.
 
-> Insumos y alertas no estaban en el diseño original del Proyecto 1; queda por
-> decidir si se conectan en esta fase.
+> Insumos y alertas no estaban en el diseño original del Proyecto 1; el autor
+> decidió incluirlos (2026-10-29) y ya están conectados en `warehouse.js` y
+> `dashboard.js`.
 
 ## 9. Usuarios — `users.js` (ya conectado)
 

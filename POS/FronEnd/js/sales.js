@@ -218,7 +218,15 @@ async function verifySalesIntegrity() {
  * @param {number} saleId - ID de la venta.
  */
 async function cancelSale(saleId) {
-    const reason = prompt(`Cancelar la venta #${saleId}. Se regresará al almacén lo vendido.\n\nMotivo (opcional):`);
+    const reason = await openInputModal({
+        eyebrow: 'Historial',
+        title: `Cancelar venta #${saleId}`,
+        message: 'Se regresará al almacén lo vendido. La venta se queda en el historial marcada como cancelada y deja de contar en los totales.',
+        label: 'Motivo (opcional)',
+        maxLength: 255,
+        confirmLabel: 'Cancelar venta',
+        danger: true
+    });
     if (reason === null) return;
 
     try {
