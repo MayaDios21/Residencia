@@ -126,6 +126,35 @@ class AuthenticationTests(APITestCase):
 
         self.assertEqual(self.failed_login().status_code, status.HTTP_400_BAD_REQUEST)
 
+    def failed_login_from(self, forwarded_for):
+        return self.client.post('/api/auth/login/', {
+            'username': 'cashier',
+            'password': 'wrong-password',
+        }, HTTP_X_FORWARDED_FOR=forwarded_for)
+
+    @override_settings(LOGIN_MAX_FAILED_ATTEMPTS=3, TRUST_X_FORWARDED_FOR=True)
+    def test_behind_proxy_block_is_per_forwarded_ip(self):
+        """En Vercel todos llegan desde el proxy: el bloqueo es por la IP real."""
+        for _ in range(3):
+            self.failed_login_from('203.0.113.5')
+
+        blocked = self.failed_login_from('203.0.113.5, 10.0.0.1')
+        other_client = self.failed_login_from('198.51.100.7')
+
+        self.assertEqual(blocked.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(other_client.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @override_settings(LOGIN_MAX_FAILED_ATTEMPTS=3, TRUST_X_FORWARDED_FOR=False)
+    def test_forwarded_header_ignored_outside_proxy(self):
+        """En local no se confía en X-Forwarded-For: cambiarlo no evade el bloqueo."""
+        for number in range(3):
+            self.failed_login_from(f'203.0.113.{number}')
+
+        self.assertEqual(
+            self.failed_login_from('198.51.100.7').status_code,
+            status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
     def test_authenticated_user_can_read_me(self):
         token = self.client.post('/api/auth/login/', {
             'username': 'cashier',

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sfo1"],
+  "services": {
+    "backend": {
+      "root": "BakcEnd/",
+      "framework": "django"
+    },
+    "frontend": {
+      "root": "./",
+      "buildCommand": "rm -rf dist && mkdir dist && cp -r FronEnd/index.html FronEnd/css FronEnd/js Public dist/",
+      "outputDirectory": "dist"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "backend" } },
+    { "source": "/admin", "destination": { "service": "backend" } },
+    { "source": "/admin/(.*)", "destination": { "service": "backend" } },
+    { "source": "/static/(.*)", "destination": { "service": "backend" } },
+    { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ]
+}

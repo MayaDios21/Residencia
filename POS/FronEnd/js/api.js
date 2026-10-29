@@ -6,7 +6,20 @@
  * guardan en el navegador). Es el primer módulo que carga index.html.
  */
 
-const API_URL = window.POS_API_URL || 'http://127.0.0.1:8000/api';
+/**
+ * Dirección de la API. Publicado en Vercel, frontend y API comparten dominio
+ * ('/api'). En local (servidor de pruebas con puerto, como 8080 o 5500, o
+ * archivo abierto directo) Django corre en el puerto 8000 del mismo equipo.
+ */
+function resolveApiUrl() {
+    if (window.POS_API_URL) return window.POS_API_URL;
+    if (location.protocol === 'file:' || location.port !== '') {
+        return `http://${location.hostname || '127.0.0.1'}:8000/api`;
+    }
+    return '/api';
+}
+
+const API_URL = resolveApiUrl();
 const USE_API = false;
 const AUTH_TOKEN_KEY = 'pos_auth_token';
 

@@ -525,3 +525,66 @@ APAGAR
 
   En cada terminal presionar Ctrl + C. Si cierras las terminales o VS Code,
   los servidores tambien se apagan.
+
+
+13. VERSION PUBLICADA: SUPABASE Y VERCEL (FASE 6)
+
+La version publicada vive en Vercel (frontend y API en el mismo dominio) y la
+base de datos en Supabase. Vercel publica solo en cada "git push" a main, asi
+que todo se prueba en local ANTES de hacer push.
+
+Archivos de esta configuracion (no hace falta tocarlos para probar en local):
+
+  - POS\vercel.json: dos servicios. "backend" (Django, carpeta BakcEnd) recibe
+    /api/, /admin/ y /static/; "frontend" recibe todo lo demas. En el build el
+    frontend se copia a la carpeta dist (index.html, css, js y Public) y se
+    sirve en la raiz del dominio.
+  - BakcEnd\config\settings.py: en Vercel (variable VERCEL=1, la pone Vercel)
+    activa HTTPS, cookies seguras, el dominio de Vercel en ALLOWED_HOSTS y
+    CSRF_TRUSTED_ORIGINS, y la IP real del cliente para el limite de login.
+    Con DATABASE_URL usa la cache en la tabla pos_cache.
+  - FronEnd\js\api.js: con un puerto en la direccion (8080, 5500, etc.) usa
+    Django en el puerto 8000 del mismo equipo; publicado usa /api.
+
+Comandos contra Supabase desde la PC (migraciones, cache y usuarios)
+
+  Las migraciones no corren solas en Vercel. Se ejecutan desde la PC con
+  DATABASE_URL apuntando a Supabase. La cadena NUNCA se guarda en un archivo
+  del repositorio; solo se pega en la terminal.
+
+  cd C:\Users\dmaya\Residencia\POS\BakcEnd
+  $env:DJANGO_SECRET_KEY="local-development-key"
+  $env:DATABASE_URL="<cadena del pooler de Supabase, puerto 6543, con ?sslmode=require>"
+  C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py migrate
+  C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py createcachetable
+
+  Crear el administrador y el cajero con contraseñas reales (no 1234). El
+  primer comando crea el usuario sin contraseña; "changepassword" la pide dos
+  veces sin mostrarla y aplica las reglas de seguridad (minimo 8 caracteres,
+  no comun, no solo numeros):
+
+  C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,c=User.objects.get_or_create(username='admin', defaults={'is_staff':True,'is_superuser':True}); u.set_unusable_password() if c else None; u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'admin'})"
+  C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py changepassword admin
+
+  C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,c=User.objects.get_or_create(username='cajero'); u.set_unusable_password() if c else None; u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'cashier'})"
+  C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe manage.py changepassword cajero
+
+  AL TERMINAR, cerrar esa terminal o quitar la variable para no tocar
+  produccion por error:
+
+  Remove-Item Env:DATABASE_URL
+
+  Mientras DATABASE_URL este definida, TODOS los comandos (incluidos
+  migrate, shell y runserver) trabajan sobre la base de Supabase.
+
+Probar la version publicada
+
+  - Abrir la direccion de Vercel (https://<proyecto>.vercel.app/).
+  - Entrar con el admin y el cajero de Supabase (no con los de local).
+  - Panel de Django: https://<proyecto>.vercel.app/admin/ (debe verse con
+    estilos).
+  - La primera peticion tras un rato sin uso tarda 1 a 3 segundos (arranque
+    en frio). Supabase gratis pausa el proyecto tras ~1 semana sin actividad;
+    se reactiva desde su panel.
+  - Hasta la Fase 7 solo el login y los usuarios usan Supabase; catalogo,
+    caja y ventas siguen guardandose en el navegador de cada equipo.

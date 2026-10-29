@@ -37,6 +37,16 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+# En Vercel (VERCEL=1) se agregan solos el dominio de producción y el de cada
+# despliegue, para no tener que capturarlos a mano.
+ON_VERCEL = os.getenv('VERCEL') == '1'
+VERCEL_HOSTS = [
+    host
+    for host in (os.getenv('VERCEL_PROJECT_PRODUCTION_URL'), os.getenv('VERCEL_URL'))
+    if host
+]
+ALLOWED_HOSTS.extend(VERCEL_HOSTS)
+
 
 # Aplicaciones instaladas
 
@@ -91,12 +101,14 @@ database_url = os.getenv('DATABASE_URL', '').strip()
 
 if database_url:
     DATABASES = {
-        'default': dj_database_url.parse(
-            database_url,
-            conn_max_age=600,
-            conn_health_checks=True,
-        ),
+        'default': dj_database_url.parse(database_url, conn_max_age=0),
     }
+    # Supabase se usa por su pooler en modo transacción (puerto 6543), que no
+    # mantiene la misma conexión entre consultas: sin cursores del lado del
+    # servidor ni sentencias preparadas. La conexión se cierra al terminar cada
+    # petición (conn_max_age=0), como conviene en funciones serverless.
+    DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+    DATABASES['default'].setdefault('OPTIONS', {})['prepare_threshold'] = None
 else:
     DATABASES = {
         'default': {
@@ -106,6 +118,19 @@ else:
     }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Caché (la usa el límite de intentos de inicio de sesión)
+# Con PostgreSQL se guarda en una tabla para que la compartan todas las
+# ejecuciones serverless; se crea una vez con `python manage.py createcachetable`.
+# En local (SQLite) basta la caché en memoria.
+if database_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'pos_cache',
+        }
+    }
 
 
 # Validación de contraseñas
@@ -143,20 +168,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-
-
-# Correo electrónico
-# https://docs.djangoproject.com/en/5.2/topics/email/
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# Vercel corre collectstatic en el build y sirve esta carpeta desde su CDN
+# (estilos de /admin/). En local no se usa.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Inicio de sesión: intentos fallidos permitidos por dirección IP en la ventana.
 LOGIN_MAX_FAILED_ATTEMPTS = 5
 LOGIN_FAILURE_WINDOW_SECONDS = 60
+# Detrás del proxy de Vercel, REMOTE_ADDR es el del proxy: la IP real del
+# cliente llega en X-Forwarded-For (Vercel la sobrescribe, no se puede falsear).
+# En local se deja apagado para que nadie evada el límite con ese encabezado.
+TRUST_X_FORWARDED_FOR = ON_VERCEL
 
 # Algoritmo de reabastecimiento: días de historial que se promedian y días que
 # tarda en llegar un pedido (dato del negocio: 2 días).
@@ -200,3 +222,21 @@ if DEBUG:
     REST_FRAMEWORK['DEFAULT_AUTHENTICATION_CLASSES'].append(
         'rest_framework.authentication.SessionAuthentication',
     )
+
+
+# HTTPS y cookies seguras (solo en Vercel; en local se sigue usando http)
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
+
+if ON_VERCEL:
+    CSRF_TRUSTED_ORIGINS.extend(f'https://{host}' for host in VERCEL_HOSTS)
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = 'same-origin'

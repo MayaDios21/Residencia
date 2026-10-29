@@ -21,8 +21,17 @@ from .serializers import LoginSerializer, UserSerializer
 INVALID_LOGIN_MESSAGE = 'Usuario o contraseña incorrectos.'
 
 
+def get_client_ip(request):
+    """IP del cliente. En Vercel se toma de X-Forwarded-For (ver settings)."""
+    if settings.TRUST_X_FORWARDED_FOR:
+        forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+        if forwarded_for:
+            return forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
 def get_failed_login_key(request):
-    return f"login-failures:{request.META.get('REMOTE_ADDR', '')}"
+    return f'login-failures:{get_client_ip(request)}'
 
 
 def register_failed_login(request):
