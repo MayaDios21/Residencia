@@ -139,19 +139,6 @@ function closeSalesForDate(dateKey, closedAt = new Date().toISOString()) {
     return changed;
 }
 
-/** Marca como cerradas las ventas de los días que ya tienen cierre de caja. */
-function syncSalesWithCashBoxClosures() {
-    const closedDates = new Set(cashBoxRecords.map(record => record.dateKey));
-    let changed = false;
-    salesHistory = salesHistory.map(sale => {
-        const saleDateKey = sale.dateKey || getLocalDateKey(new Date(sale.date));
-        if (!closedDates.has(saleDateKey) || sale.status === 'cerrada') return sale;
-        changed = true;
-        return { ...sale, dateKey: saleDateKey, status: 'cerrada' };
-    });
-    if (changed) saveSalesHistory();
-}
-
 /**
  * Funciones auxiliares para el historial de ventas
  */

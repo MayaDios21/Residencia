@@ -184,6 +184,100 @@ async function deleteProductInApi(productId) {
 }
 
 /**
+ * Descarga un archivo de la API (por ejemplo un CSV) con el token de sesión.
+ * Un enlace normal no serviría porque no manda el encabezado Authorization.
+ * @param {string} path - Ruta relativa a API_URL.
+ * @param {string} filename - Nombre con el que se guarda el archivo.
+ */
+async function downloadFileFromApi(path, filename) {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    const response = await fetch(`${API_URL}${path}`, {
+        headers: token ? { Authorization: `Token ${token}` } : {}
+    });
+    if (!response.ok) {
+        let message = 'No se pudo descargar el archivo';
+        try {
+            message = (await response.json()).detail || message;
+        } catch (error) {
+            // La respuesta no era JSON; se queda el mensaje genérico.
+        }
+        const requestError = new Error(message);
+        requestError.status = response.status;
+        throw requestError;
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Obtiene el IVA y el tipo de cambio (ambos roles).
+ * @returns {Promise<{tax_rate: string, exchange_rate: string}>} tax_rate es fracción (0.0800 = 8 %).
+ */
+async function getSettingsFromApi() {
+    return apiRequest('/configuracion/');
+}
+
+/**
+ * Cambia el IVA y/o el tipo de cambio (solo administrador).
+ * @param {{tax_rate?: string, exchange_rate?: string}} changes
+ * @returns {Promise<Object>} Configuración actualizada.
+ */
+async function updateSettingsInApi(changes) {
+    return apiRequest('/configuracion/', {
+        method: 'PATCH',
+        body: JSON.stringify(changes)
+    });
+}
+
+/**
+ * Estado de la caja de hoy: sin_abrir, abierta o cerrada, con la jornada,
+ * las ventas del día y una jornada anterior que haya quedado abierta.
+ * @returns {Promise<{status: string, session: ?Object, sales_today: ?Object, pending_session: ?Object}>}
+ */
+async function getCurrentCashBoxFromApi() {
+    return apiRequest('/caja/actual/');
+}
+
+/**
+ * Abre la caja de hoy con su fondo inicial.
+ * @param {number} openingAmount - Fondo inicial, mayor que cero.
+ * @returns {Promise<Object>} Jornada abierta.
+ */
+async function openCashBoxInApi(openingAmount) {
+    return apiRequest('/caja/abrir/', {
+        method: 'POST',
+        body: JSON.stringify({ opening_amount: openingAmount.toFixed(2) })
+    });
+}
+
+/**
+ * Cierra la jornada abierta. El servidor calcula el efectivo esperado y
+ * cierra las ventas de ese día.
+ * @param {Object} [closing] - counted_cash, minor_expenses y retained_fund (opcionales).
+ * @returns {Promise<Object>} Jornada cerrada con sus totales.
+ */
+async function closeCashBoxInApi(closing = {}) {
+    return apiRequest('/caja/cerrar/', {
+        method: 'POST',
+        body: JSON.stringify(closing)
+    });
+}
+
+/**
+ * Lista los cierres de caja registrados (solo administrador).
+ * @returns {Promise<Object[]>}
+ */
+async function getCashBoxClosingsFromApi() {
+    return apiRequest('/caja/cierres/');
+}
+
+/**
  * Registra una entrada, salida o ajuste de inventario en el backend.
  * @param {{product_id: number, type: string, quantity: number, reason: string}} movement
  * @returns {Promise<Object>} Movimiento creado con stock_remaining.

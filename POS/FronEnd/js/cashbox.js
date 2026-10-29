@@ -1,15 +1,28 @@
 /*
  * CAJA Y JORNADA
  * Fondo inicial, bloqueo de pantallas hasta abrir la jornada (solo cajero),
- * cálculo y registro del cierre, historial de cierres y exportación a CSV.
+ * cierre e historial de cierres con exportación a CSV. La caja vive en el
+ * servidor (/api/caja/): abrirla o cerrarla en un dispositivo se ve en todos.
  */
+
+/** Pide al servidor el estado de la caja de hoy. */
+async function loadCashBoxState() {
+    cashBoxState = await getCurrentCashBoxFromApi();
+}
+
+/**
+ * Jornada que se puede cerrar: una de otro día que quedó abierta (tiene
+ * prioridad, el servidor no deja abrir la de hoy sin cerrarla) o la de hoy.
+ * @returns {Object|null}
+ */
+function getOpenCashSession() {
+    if (cashBoxState.pending_session) return cashBoxState.pending_session;
+    return cashBoxState.status === 'abierta' ? cashBoxState.session : null;
+}
 
 /** Indica si hoy todavía no se abre la caja ni se registra el cierre. */
 function shouldOpenCashBoxForToday() {
-    const today = getLocalDateKey();
-    const hasOpening = openingCash.dateKey === today && openingCash.amount > 0;
-    const hasClosing = cashBoxRecords.some(record => record.dateKey === today);
-    return !hasOpening && !hasClosing;
+    return cashBoxState.status === 'sin_abrir';
 }
 
 /** Lleva el cursor al campo del fondo inicial y lo hace visible. */
@@ -25,6 +38,10 @@ function focusOpeningCashField() {
 function openDailyStartIfNeeded() {
     if (!shouldOpenCashBoxForToday()) return;
     showTab('cashbox');
+    if (cashBoxState.pending_session) {
+        showNotification(`La caja del ${formatBusinessDate(cashBoxState.pending_session.business_date)} sigue abierta: ciérrala antes de abrir la de hoy.`);
+        return;
+    }
     focusOpeningCashField();
     showNotification('Nueva jornada: registra el fondo inicial para comenzar.');
 }
@@ -34,7 +51,7 @@ function openDailyStartIfNeeded() {
  * @returns {boolean}
  */
 function isCashBoxClosedForToday() {
-    return cashBoxRecords.some(record => record.dateKey === getLocalDateKey());
+    return cashBoxState.status === 'cerrada';
 }
 
 /**
@@ -50,6 +67,16 @@ function canSellToday() {
 }
 
 /**
+ * Convierte una fecha de jornada (AAAA-MM-DD) a DD/MM/AAAA.
+ * @param {string} dateKey
+ * @returns {string}
+ */
+function formatBusinessDate(dateKey) {
+    const [year, month, day] = dateKey.split('-');
+    return `${day}/${month}/${year}`;
+}
+
+/**
  * Registra el fondo inicial de la jornada después de confirmarlo en el modal.
  * @param {Event} event - Envío del formulario de apertura.
  */
@@ -60,8 +87,7 @@ function openCashBox(event) {
         alert('Ingresa un fondo inicial mayor que $0.00.');
         return;
     }
-    const today = getLocalDateKey();
-    if (cashBoxRecords.some(record => record.dateKey === today)) {
+    if (isCashBoxClosedForToday()) {
         alert('El cierre de hoy ya fue registrado. No puedes abrir una nueva caja para esta jornada.');
         return;
     }
@@ -69,126 +95,93 @@ function openCashBox(event) {
         'Guardar fondo de apertura',
         `Se abrirá la caja con un fondo protegido de $${amount.toFixed(2)}.`,
         'Confirmar apertura',
-        () => {
-            openingCash = { amount, dateKey: today };
-            localStorage.setItem('pos_opening_cash', JSON.stringify(openingCash));
-            updateOpeningCashDisplay();
-            updateCashBoxClosingVisibility();
+        async () => {
+            try {
+                await openCashBoxInApi(amount);
+                await loadCashBoxState();
+            } catch (error) {
+                console.error('Error al abrir la caja:', error);
+                showNotification(`No se pudo abrir la caja: ${error.message}`);
+                // Otro dispositivo pudo haberla abierto o cerrado: se muestra el estado real.
+                await refreshCashBoxView();
+                return;
+            }
+            renderCashBoxTab();
+            loadProducts();
             showNotification(`Fondo de apertura guardado: $${amount.toFixed(2)}`);
         }
     );
 }
 
-/** Muestra el fondo inicial de hoy en el formulario y en el resumen. */
+/** Muestra el fondo inicial de la jornada abierta en el formulario y en el resumen. */
 function updateOpeningCashDisplay() {
-    const today = getLocalDateKey();
-    const amount = openingCash.dateKey === today ? openingCash.amount : 0;
+    const session = getOpenCashSession();
+    const amount = session ? Number(session.opening_amount) : 0;
     const input = document.getElementById('initial-fund');
     const display = document.getElementById('opening-fund-value');
     if (input && amount > 0) input.value = amount.toFixed(2);
     if (display) display.textContent = `$${amount.toFixed(2)}`;
 }
 
-/** Muestra el paso de cierre de caja solo cuando la jornada ya está abierta. */
+/** Muestra el paso de cierre de caja solo cuando hay una jornada abierta. */
 function updateCashBoxClosingVisibility() {
-    const isOpen = openingCash.dateKey === getLocalDateKey() && openingCash.amount > 0;
+    const isOpen = getOpenCashSession() !== null;
     const closingStep = document.getElementById('cashbox-closing-step');
     const closingForm = document.getElementById('cashbox-form');
     if (closingStep) closingStep.hidden = !isOpen;
     if (closingForm) closingForm.hidden = !isOpen;
+    if (!isOpen) document.getElementById('cashbox-results').hidden = true;
 }
 
 /**
- * Calcula los totales de caja
+ * Ventas de la jornada abierta según el servidor. De una jornada pendiente de
+ * otro día no se tiene el total hasta cerrarla.
+ * @returns {number}
+ */
+function getOpenSessionSalesTotal() {
+    if (cashBoxState.pending_session || !cashBoxState.sales_today) return 0;
+    return Number(cashBoxState.sales_today.total);
+}
+
+/**
+ * Muestra el resumen del cierre antes de guardarlo.
  * @param {Event} event - Evento del formulario
  */
 function calculateCashBox(event) {
     event.preventDefault();
-    
-    // Obtener valores del formulario
-    const dailySales = parseFloat(document.getElementById('daily-sales').value);
-    const initialFund = openingCash.dateKey === getLocalDateKey() ? openingCash.amount : 0;
-    
-    // Validaciones
-    if (initialFund <= 0) {
+
+    const session = getOpenCashSession();
+    if (!session) {
         alert('Primero registra el fondo de apertura de la caja.');
         return;
     }
+    const initialFund = Number(session.opening_amount);
+    const dailySales = getOpenSessionSalesTotal();
     const expectedCash = initialFund + dailySales;
-    const withdrawal = dailySales;
-    
-    // Almacenar en objeto actual
+
     currentCashBoxCalculation = {
         initialFund: initialFund,
         dailySales: dailySales,
         minorExpenses: 0,
         totalInCash: expectedCash,
-        netSales: withdrawal,
+        netSales: dailySales,
         countedCash: expectedCash,
         retainedFund: initialFund,
         expectedCash: expectedCash,
         difference: 0
     };
-    
-    // Mostrar resultados
+
     document.getElementById('retained-cash').textContent = `$${initialFund.toFixed(2)}`;
-    document.getElementById('total-cashbox').textContent = `$${withdrawal.toFixed(2)}`;
+    document.getElementById('total-cashbox').textContent = `$${dailySales.toFixed(2)}`;
     document.getElementById('net-sales').textContent = `$${expectedCash.toFixed(2)}`;
-    
+
     const resultsPanel = document.getElementById('cashbox-results');
     resultsPanel.hidden = false;
     resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-/**
- * Guarda el registro actual de caja en el historial
- */
-function saveCashBoxRecord() {
-    if (!currentCashBoxCalculation.dailySales && !currentCashBoxCalculation.initialFund) {
-        alert(' Debes calcular primero antes de guardar');
-        return;
-    }
-
-    const today = getLocalDateKey();
-    if (cashBoxRecords.some(record => record.dateKey === today)) {
-        alert('Ya existe un cierre registrado para hoy. Elimina el anterior si necesitas corregirlo.');
-        return;
-    }
-    
-    const record = {
-        id: nextCashBoxId++,
-        date: new Date().toISOString(),
-        initialFund: currentCashBoxCalculation.initialFund,
-        dailySales: currentCashBoxCalculation.dailySales,
-        minorExpenses: currentCashBoxCalculation.minorExpenses,
-        totalInCash: currentCashBoxCalculation.totalInCash,
-        netSales: currentCashBoxCalculation.netSales,
-        countedCash: currentCashBoxCalculation.countedCash,
-        retainedFund: currentCashBoxCalculation.retainedFund,
-        expectedCash: currentCashBoxCalculation.expectedCash,
-        difference: currentCashBoxCalculation.difference,
-        dateKey: today,
-        type: 'cierre'
-    };
-    
-    // Agregar al inicio de la lista (más reciente primero)
-    cashBoxRecords.unshift(record);
-
-    // El cierre de caja también cierra todas las ventas de esta jornada.
-    closeSalesForDate(today, record.date);
-    
-    // Guardar en localStorage
-    saveCashBoxRecords();
-    
-    // Limpiar formulario
-    document.getElementById('cashbox-form').reset();
-    localStorage.removeItem('pos_opening_cash');
-    openingCash = { amount: 0, dateKey: null };
-    
-    // Ocultar resultados
-    document.getElementById('cashbox-results').hidden = true;
-    
-    // Reiniciar el cálculo actual
+/** Regresa el cálculo del cierre a ceros. */
+function resetCashBoxCalculation() {
     currentCashBoxCalculation = {
         initialFund: 0,
         dailySales: 0,
@@ -200,15 +193,45 @@ function saveCashBoxRecord() {
         expectedCash: 0,
         difference: 0
     };
+}
 
-    loadCashBoxTab();
+/**
+ * Registra el cierre en el servidor. El servidor calcula las ventas y el
+ * efectivo esperado con lo que tiene registrado y cierra las ventas del día.
+ */
+async function saveCashBoxRecord() {
+    const session = getOpenCashSession();
+    if (!session) {
+        alert('No hay una caja abierta para cerrar.');
+        return;
+    }
+
+    let closed;
+    try {
+        closed = await closeCashBoxInApi();
+    } catch (error) {
+        console.error('Error al cerrar la caja:', error);
+        showNotification(`No se pudo cerrar la caja: ${error.message}`);
+        await refreshCashBoxView();
+        return;
+    }
+
+    // Mientras las ventas sigan en el navegador (bloque 3) se cierran también aquí.
+    closeSalesForDate(closed.business_date, closed.closed_at);
+
+    document.getElementById('cashbox-form').reset();
+    document.getElementById('cashbox-results').hidden = true;
+    resetCashBoxCalculation();
+
+    await refreshCashBoxView();
+    loadProducts();
     loadSalesHistoryTab();
-    alert(' Registro guardado exitosamente!');
+    alert(`Cierre del ${formatBusinessDate(closed.business_date)} guardado: ${closed.sales_count} ventas por $${Number(closed.sales_total).toFixed(2)}. Esperado en caja: $${Number(closed.expected_cash).toFixed(2)}.`);
 }
 
 /** Pide confirmación antes de guardar el cierre de jornada ya calculado. */
 function confirmCashBoxRecord() {
-    if (!currentCashBoxCalculation.dailySales && !currentCashBoxCalculation.initialFund) {
+    if (!currentCashBoxCalculation.initialFund) {
         alert(' Debes calcular primero antes de guardar');
         return;
     }
@@ -220,32 +243,57 @@ function confirmCashBoxRecord() {
     );
 }
 
-/**
- * Carga la pestaña de control de caja
- */
-function loadCashBoxTab() {
+/** Dibuja la pantalla de caja con el estado que ya se tiene en memoria. */
+function renderCashBoxTab() {
     // El administrador no abre ni cierra caja: solo consulta el historial de cierres.
     const isAdmin = adminSession?.role === 'admin';
     document.getElementById('cashbox-operation').hidden = isAdmin;
+    // El historial de cierres solo lo da la API al administrador.
+    document.getElementById('cashbox-history').hidden = !isAdmin;
     document.getElementById('cashbox-eyebrow').textContent = isAdmin ? 'Consulta' : 'Inicio de jornada';
     document.getElementById('cashbox-title').textContent = isAdmin ? 'Cierres de caja' : 'Apertura y cierre de caja';
+    const pending = cashBoxState.pending_session;
     document.getElementById('cashbox-subtitle').textContent = isAdmin
         ? 'Revisa los cierres de jornada registrados por los cajeros.'
-        : 'Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.';
+        : pending
+            ? `La caja del ${formatBusinessDate(pending.business_date)} quedó abierta. Ciérrala para poder abrir la de hoy.`
+            : 'Primero registra únicamente el fondo inicial. Al terminar el día podrás revisar y guardar el cierre.';
 
-    const today = getTodaySalesSummary();
     const dailySalesInput = document.getElementById('daily-sales');
-    if (dailySalesInput) dailySalesInput.value = today.total.toFixed(2);
+    if (dailySalesInput) dailySalesInput.value = getOpenSessionSalesTotal().toFixed(2);
     updateOpeningCashDisplay();
     updateCashBoxClosingVisibility();
     const status = document.getElementById('cashbox-status');
     if (status) {
-        status.textContent = cashBoxRecords.some(record => record.dateKey === getLocalDateKey())
-            ? 'Cierre de hoy registrado'
-            : 'Sin cierre de hoy';
-        status.classList.toggle('closed', status.textContent.includes('registrado'));
+        const isClosed = isCashBoxClosedForToday();
+        status.textContent = isClosed ? 'Cierre de hoy registrado' : 'Sin cierre de hoy';
+        status.classList.toggle('closed', isClosed);
     }
-    loadCashBoxTable();
+    if (isAdmin) loadCashBoxTable();
+}
+
+/**
+ * Vuelve a pedir al servidor el estado de la caja (y los cierres, si es
+ * administrador) y redibuja la pantalla. Así se ve lo que hizo otro dispositivo.
+ */
+async function refreshCashBoxView() {
+    try {
+        await loadCashBoxState();
+        if (adminSession?.role === 'admin') cashBoxClosings = await getCashBoxClosingsFromApi();
+    } catch (error) {
+        console.error('Error al consultar la caja:', error);
+        showNotification(`No se pudo consultar la caja: ${error.message}`);
+    }
+    renderCashBoxTab();
+}
+
+/**
+ * Carga la pestaña de control de caja: dibuja lo que ya se tiene y lo
+ * actualiza con el servidor.
+ */
+function loadCashBoxTab() {
+    renderCashBoxTab();
+    refreshCashBoxView();
 }
 
 /**
@@ -254,132 +302,55 @@ function loadCashBoxTab() {
 function loadCashBoxTable() {
     const tbody = document.getElementById('cashbox-tbody');
 
-    if (cashBoxRecords.length === 0) {
+    if (cashBoxClosings.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No hay cierres registrados</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = '';
-    
-    cashBoxRecords.forEach(record => {
-        const date = new Date(record.date);
-        const formattedDate = date.toLocaleDateString('es-MX', {
+
+    cashBoxClosings.forEach(closing => {
+        const formattedDate = new Date(closing.closed_at).toLocaleDateString('es-MX', {
             year: 'numeric',
             month: '2-digit',
             day: '2-digit',
             hour: '2-digit',
             minute: '2-digit'
         });
-        
+        const countedCash = Number(closing.counted_cash);
+        const retainedFund = Number(closing.retained_fund);
+        const withdrawal = countedCash - retainedFund;
+
         const row = document.createElement('tr');
-        const countedCash = record.countedCash ?? record.totalInCash ?? 0;
-        const retainedFund = record.retainedFund ?? record.initialFund ?? 0;
-        const withdrawal = record.netSales ?? ((record.totalInCash || 0) - retainedFund);
         row.innerHTML = `
             <td>${formattedDate}</td>
-            <td class="num">$${record.initialFund.toFixed(2)}</td>
-            <td class="num">$${record.dailySales.toFixed(2)}</td>
-            <td class="num">$${record.minorExpenses.toFixed(2)}</td>
+            <td class="num">$${Number(closing.opening_amount).toFixed(2)}</td>
+            <td class="num">$${Number(closing.sales_total).toFixed(2)}</td>
+            <td class="num">$${Number(closing.minor_expenses).toFixed(2)}</td>
             <td class="num"><strong>$${countedCash.toFixed(2)}</strong></td>
             <td class="num">$${retainedFund.toFixed(2)}</td>
             <td class="num"><strong class="amount-positive">$${withdrawal.toFixed(2)}</strong></td>
-            <td>
-                <button class="btn btn-danger btn-compact" type="button" onclick="deleteCashBoxRecord(${record.id})">Eliminar</button>
-            </td>
+            <td>${escapeHtml(closing.closed_by || '')}</td>
         `;
-        
+
         tbody.appendChild(row);
     });
 }
 
 /**
- * Elimina un registro de caja
- * @param {number} recordId - ID del registro a eliminar
+ * Descarga el historial de cierres en CSV (lo genera el servidor).
  */
-function deleteCashBoxRecord(recordId) {
-    const record = cashBoxRecords.find(r => r.id === recordId);
-    
-    if (!record) {
-        alert(' Registro no encontrado');
-        return;
-    }
-    
-    const date = new Date(record.date).toLocaleDateString('es-MX');
-    openActionModal(
-        'Eliminar cierre de caja',
-        `¿Eliminar el registro del ${date}? Fondo: $${record.initialFund.toFixed(2)} | Ventas: $${record.dailySales.toFixed(2)}`,
-        'Eliminar registro',
-        () => {
-            cashBoxRecords = cashBoxRecords.filter(r => r.id !== recordId);
-            saveCashBoxRecords();
-            loadCashBoxTable();
-            showNotification('Registro eliminado exitosamente');
-        }
-    );
-}
-
-/**
- * Limpia todo el historial de caja
- */
-function clearCashBoxHistory() {
-    if (cashBoxRecords.length === 0) {
-        alert(' No hay registros para limpiar');
-        return;
-    }
-    
-    const confirmMsg = ` ¿Estás seguro de que quieres borrar TODOS los registros de caja?\n\nSe eliminarán ${cashBoxRecords.length} registros.\n\nEsta acción NO se puede deshacer.`;
-    
-    openActionModal(
-        'Borrar historial de caja',
-        confirmMsg,
-        'Continuar',
-        () => openActionModal(
-            'Última confirmación',
-            'Se borrará TODO el historial de caja. Esta acción es irreversible.',
-            'Borrar definitivamente',
-            () => {
-            cashBoxRecords = [];
-            nextCashBoxId = 1;
-            saveCashBoxRecords();
-            loadCashBoxTable();
-            showNotification('Historial de caja borrado completamente');
-            }
-        )
-    );
-}
-
-/**
- * Exporta el historial de caja a CSV
- */
-function exportCashBoxHistory() {
-    if (cashBoxRecords.length === 0) {
+async function exportCashBoxHistory() {
+    if (cashBoxClosings.length === 0) {
         alert(' No hay registros para exportar');
         return;
     }
-    
-    // Crear contenido CSV
-    let csvContent = 'Fecha y Hora,Fondo Inicial,Ventas del Día,Gastos o Retiros,Efectivo Contado,Fondo Retenido,Retiro\n';
-    
-    cashBoxRecords.forEach(record => {
-        const date = new Date(record.date).toLocaleDateString('es-MX') + ' ' + 
-                     new Date(record.date).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-        
-        const countedCash = record.countedCash ?? record.totalInCash ?? 0;
-        const retainedFund = record.retainedFund ?? record.initialFund ?? 0;
-        const withdrawal = record.netSales ?? ((record.totalInCash || 0) - retainedFund);
-        csvContent += `"${date}",${record.initialFund.toFixed(2)},${record.dailySales.toFixed(2)},${record.minorExpenses.toFixed(2)},${countedCash.toFixed(2)},${retainedFund.toFixed(2)},${withdrawal.toFixed(2)}\n`;
-    });
-    
-    // Crear y descargar archivo
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `fondo_caja_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    alert(` Se exportaron ${cashBoxRecords.length} registros exitosamente`);
+    try {
+        await downloadFileFromApi('/caja/cierres/exportar/', `cierres_de_caja_${getLocalDateKey()}.csv`);
+        const count = cashBoxClosings.length;
+        showNotification(`Se ${count === 1 ? 'exportó 1 cierre' : `exportaron ${count} cierres`}`);
+    } catch (error) {
+        console.error('Error al exportar cierres:', error);
+        showNotification(`No se pudo exportar: ${error.message}`);
+    }
 }

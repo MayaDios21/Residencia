@@ -25,7 +25,8 @@ let activeCategory = "Todas";
 // Configuración del sistema:
 // TAX_RATE define el porcentaje de IVA y exchangeRate se usa para mostrar
 // equivalencias en dólares sin cambiar el precio original en pesos.
-// TAX_RATE ahora es una variable que puede ser modificada
+// Ambos se cargan de /api/configuracion/ al iniciar sesión; estos son solo
+// los valores mientras llega la respuesta.
 let TAX_RATE = 0.08; // 8% de IVA (valor por defecto)
 
 // Variable para almacenar el tipo de cambio
@@ -45,16 +46,17 @@ const CURRENT_TAB_STORAGE_KEY = 'pos_current_tab';
 // usuario confirme un modal, por ejemplo borrar un registro o abrir la caja.
 let pendingAction = null;
 
-// Lista de registros de caja
-let cashBoxRecords = [];
-
-let openingCash = {
-    amount: 0,
-    dateKey: null
+// Caja de hoy según la API (/api/caja/actual/): status es sin_abrir, abierta
+// o cerrada; pending_session es una jornada de otro día que quedó abierta.
+let cashBoxState = {
+    status: 'sin_abrir',
+    session: null,
+    sales_today: null,
+    pending_session: null
 };
 
-// ID para nuevos registros
-let nextCashBoxId = 1;
+// Cierres de caja registrados (solo el administrador los consulta).
+let cashBoxClosings = [];
 
 // Objeto para almacenar el cálculo actual
 let currentCashBoxCalculation = {

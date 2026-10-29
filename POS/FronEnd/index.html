@@ -284,13 +284,6 @@
                         </form>
                         <p class="panel-footnote">Actual: <strong id="current-tax-rate">---</strong>%</p>
                     </div>
-
-                    <!-- Reinicio a los datos por defecto. -->
-                    <div class="panel panel-danger">
-                        <h3>Mantenimiento</h3>
-                        <p class="field-help">Elimina todos los datos guardados en este dispositivo y vuelve a cargar el menú por defecto. Úsalo solo si hay problemas.</p>
-                        <button class="btn btn-danger" type="button" onclick="resetSystem()">Reiniciar sistema</button>
-                    </div>
                 </div>
             </section>
 
@@ -721,13 +714,12 @@
                     </div>
                 </div>
 
-                <!-- Historial de cierres anteriores. -->
-                <div class="panel">
+                <!-- Historial de cierres anteriores (solo administrador; los cierres no se borran). -->
+                <div class="panel" id="cashbox-history">
                     <div class="panel-heading">
                         <h3>Historial de cierres</h3>
                         <div class="toolbar">
                             <button class="btn btn-secondary btn-compact" type="button" onclick="exportCashBoxHistory()">Exportar CSV</button>
-                            <button class="btn btn-danger btn-compact" type="button" onclick="clearCashBoxHistory()">Limpiar historial</button>
                         </div>
                     </div>
                     <div class="table-wrapper">
@@ -741,7 +733,7 @@
                                     <th scope="col" class="num">Efectivo contado</th>
                                     <th scope="col" class="num">Fondo retenido</th>
                                     <th scope="col" class="num">Retiro</th>
-                                    <th scope="col"><span class="visually-hidden">Acciones</span></th>
+                                    <th scope="col">Cerró</th>
                                 </tr>
                             </thead>
                             <tbody id="cashbox-tbody">

@@ -1,7 +1,26 @@
 /*
  * CONFIGURACIÓN
- * Tipo de cambio, porcentaje de IVA y reinicio completo del sistema.
+ * Tipo de cambio y porcentaje de IVA. Ambos viven en el servidor
+ * (/api/configuracion/): los dos roles los leen y solo el administrador los cambia.
  */
+
+/**
+ * Toma el IVA y el tipo de cambio de una respuesta de la API y refresca las
+ * vistas que los usan (configuración y totales del carrito).
+ * @param {{tax_rate: string, exchange_rate: string}} settings
+ */
+function applySettings(settings) {
+    TAX_RATE = Number(settings.tax_rate);
+    exchangeRate = Number(settings.exchange_rate);
+    displayExchangeRate();
+    displayTaxRate();
+    updateCart();
+}
+
+/** Pide la configuración al servidor (se llama al iniciar sesión). */
+async function loadSettings() {
+    applySettings(await getSettingsFromApi());
+}
 
 /**
  * Muestra el tipo de cambio actual en la interfaz
@@ -53,11 +72,14 @@ function updateExchangeRate(event) {
             'Guardar tipo de cambio',
             `El tipo de cambio se actualizará a $${newRate.toFixed(2)} MXN por USD.`,
             'Confirmar tipo de cambio',
-            () => {
-                exchangeRate = newRate;
-                localStorage.setItem('pos_exchangeRate', exchangeRate.toString());
-                displayExchangeRate();
-                showNotification(`Tipo de cambio actualizado a $${exchangeRate.toFixed(2)}`);
+            async () => {
+                try {
+                    applySettings(await updateSettingsInApi({ exchange_rate: newRate.toFixed(4) }));
+                    showNotification(`Tipo de cambio actualizado a $${exchangeRate.toFixed(2)}`);
+                } catch (error) {
+                    console.error('Error al guardar el tipo de cambio:', error);
+                    showNotification(`No se pudo guardar el tipo de cambio: ${error.message}`);
+                }
             }
         );
     } catch (error) {
@@ -81,43 +103,19 @@ function updateTaxRate(event) {
             'Guardar configuración de IVA',
             `El IVA se actualizará a ${newTaxPercent.toFixed(2)}%.`,
             'Confirmar IVA',
-            () => {
-                TAX_RATE = newTaxPercent / 100;
-                localStorage.setItem('pos_taxRate', TAX_RATE.toString());
-                displayTaxRate();
-                showNotification(`IVA actualizado a ${newTaxPercent.toFixed(2)}%`);
+            async () => {
+                try {
+                    // La API guarda el IVA como fracción: 8 % → 0.0800.
+                    applySettings(await updateSettingsInApi({ tax_rate: (newTaxPercent / 100).toFixed(4) }));
+                    showNotification(`IVA actualizado a ${newTaxPercent.toFixed(2)}%`);
+                } catch (error) {
+                    console.error('Error al guardar el IVA:', error);
+                    showNotification(`No se pudo guardar el IVA: ${error.message}`);
+                }
             }
         );
     } catch (error) {
         console.error('Error al actualizar tasa de IVA:', error);
         alert('Error al actualizar la tasa de IVA');
     }
-}
-
-/**
- * Limpia el localStorage completamente y reinicia con datos por defecto
- */
-function resetSystem() {
-
-    openActionModal(
-        'Reiniciar sistema',
-        'Esto eliminará los datos guardados en este navegador. El catálogo no se borra porque está en el servidor.',
-        'Reiniciar sistema',
-        () => {
-        try {
-            // Limpiar localStorage completamente. El catálogo no se toca: vive
-            // en el servidor y se vuelve a cargar al iniciar sesión.
-            localStorage.clear();
-            cart = [];
-            activeCategory = 'Todas';
-            saveCart();
-
-            showNotification('Sistema reiniciado correctamente. Recargando página...');
-            window.location.reload();
-        } catch (error) {
-            console.error('Error al reiniciar:', error);
-            showNotification('Error al reiniciar el sistema. Revisa la consola para más detalles.');
-        }
-        }
-    );
 }

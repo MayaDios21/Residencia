@@ -63,18 +63,29 @@ function handleLoginSubmit(event) {
 }
 
 /**
- * Pide el catálogo a la API (necesita el token, por eso va después del login)
- * y redibuja las vistas. Si el servidor no responde, avisa y deja la app sin productos.
+ * Pide al servidor el catálogo, la configuración y el estado de la caja
+ * (necesitan el token, por eso va después del login) y redibuja las vistas.
+ * Si algo no responde, avisa qué no se pudo cargar.
  */
-async function loadCatalogForSession() {
-    try {
-        await loadCatalog();
-    } catch (error) {
-        console.error('No se pudo cargar el catálogo:', error);
-        showNotification(`No se pudo cargar el catálogo: ${error.message}`);
+async function loadSessionData() {
+    const requests = [
+        ['el catálogo', loadCatalog()],
+        ['la configuración', loadSettings()],
+        ['la caja', loadCashBoxState()]
+    ];
+    if (adminSession.role === 'admin') {
+        requests.push(['los cierres de caja', getCashBoxClosingsFromApi().then(closings => { cashBoxClosings = closings; })]);
     }
+    const results = await Promise.allSettled(requests.map(([, request]) => request));
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.error(`No se pudo cargar ${requests[index][0]}:`, result.reason);
+            showNotification(`No se pudo cargar ${requests[index][0]}: ${result.reason.message}`);
+        }
+    });
     refreshCategoryViews();
     loadWarehouse();
+    renderCashBoxTab();
 }
 
 /**
@@ -86,7 +97,7 @@ async function enterApp(savedTab = null) {
     document.getElementById('entry-screen').hidden = true;
     document.getElementById('app-container').hidden = false;
     updateRoleNavigation();
-    await loadCatalogForSession();
+    await loadSessionData();
 
     const isAdmin = adminSession.role === 'admin';
     const canRestoreTab = savedTab
@@ -173,9 +184,11 @@ async function logoutSession() {
     }
     adminSession = null;
     clearSessionStorage();
-    // El catálogo es del usuario que inició sesión; se vuelve a pedir en el siguiente login.
+    // Los datos del servidor se vuelven a pedir en el siguiente login.
     products = [];
     categories = [];
+    cashBoxState = { status: 'sin_abrir', session: null, sales_today: null, pending_session: null };
+    cashBoxClosings = [];
     showLoginScreen();
     document.getElementById('entry-login-form').reset();
     document.getElementById('login-username').focus();
