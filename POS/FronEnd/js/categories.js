@@ -1,7 +1,8 @@
 /*
  * CATEGORÍAS
  * Alta, edición y eliminación de categorías, filtros de la pantalla de Venta
- * y selector de categoría del formulario de productos.
+ * y selector de categoría del formulario de productos. Los cambios se guardan
+ * en la API y después se recarga el catálogo.
  */
 
 /** Refresca todas las vistas que muestran categorías o productos. */
@@ -14,28 +15,28 @@ function refreshCategoryViews() {
 }
 
 /**
- * Crea una nueva categoría
+ * Crea una nueva categoría en la API y recarga el catálogo.
  * @param {string} name - Nombre de la categoría
  * @param {string} color - Color de la categoría (opcional)
+ * @returns {Promise<Object|false>} Categoría creada, o false si no se pudo.
  */
-function createCategory(name, color = '#95a5a6') {
+async function createCategory(name, color = '#95a5a6') {
     // Validar que no exista ya
-    const existingCategory = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
+    const existingCategory = categories.find(c => c.name.toLowerCase() === name.trim().toLowerCase());
     if (existingCategory) {
         alert(' Ya existe una categoría con ese nombre');
         return false;
     }
-    
-    const newCategory = {
-        id: nextCategoryId++,
-        name: name.trim(),
-        color: color
-    };
-    
-    categories.push(newCategory);
-    saveCategories();
-    
-    return newCategory;
+
+    try {
+        const newCategory = await createCategoryInApi({ name: name.trim(), color });
+        await refreshCatalog();
+        return newCategory;
+    } catch (error) {
+        console.error('Error al crear categoría:', error);
+        showNotification(`No se pudo crear la categoría: ${error.message}`);
+        return false;
+    }
 }
 
 /** Elimina todas las categorías del sistema (los productos pasan a "Sin Categoría"). */
@@ -60,19 +61,18 @@ function deleteAllCategories() {
         'Eliminar categorías',
         confirmMsg,
         'Eliminar categorías',
-        () => {
-            products.forEach(product => {
-                if (categories.some(c => c.name === product.category)) {
-                    product.category = "Sin Categoría";
-                }
-            });
-            categories = [];
+        async () => {
+            const results = await Promise.allSettled(categories.map(category => deleteCategoryInApi(category.id)));
             activeCategory = "Todas";
-            saveProducts();
-            saveCategories();
-
-            refreshCategoryViews();
-            showNotification('Todas las categorías han sido eliminadas');
+            try {
+                await refreshCatalog();
+            } catch (error) {
+                console.error('Error al recargar el catálogo:', error);
+            }
+            const failed = results.filter(result => result.status === 'rejected').length;
+            showNotification(failed === 0
+                ? 'Todas las categorías han sido eliminadas'
+                : `No se pudieron eliminar ${failed} categorías. Intenta de nuevo.`);
         }
     );
 }
@@ -89,17 +89,16 @@ function deleteCategory(categoryId) {
         return;
     }
 
-    const removeCategory = () => {
-        products.forEach(product => {
-            if (product.category === category.name) product.category = "Sin Categoría";
-        });
-        categories = categories.filter(c => c.id !== categoryId);
-        if (activeCategory === category.name) activeCategory = 'Todas';
-        saveProducts();
-        saveCategories();
-
-        refreshCategoryViews();
-        showNotification('Categoría eliminada exitosamente');
+    // El servidor deja sus productos sin categoría.
+    const removeCategory = async () => {
+        try {
+            await deleteCategoryInApi(categoryId);
+            await refreshCatalog();
+            showNotification('Categoría eliminada exitosamente');
+        } catch (error) {
+            console.error('Error al eliminar categoría:', error);
+            showNotification(`No se pudo eliminar la categoría: ${error.message}`);
+        }
     };
 
     const productsInCategory = products.filter(p => p.category === category.name);
@@ -139,9 +138,11 @@ function loadCategoryTabs() {
         categoryTabs.appendChild(tab);
     };
 
-    createTab('Todas', products.length, activeCategory === 'Todas', () => filterByCategory('Todas'));
+    // Los conteos son de lo que se puede vender (sin productos desactivados).
+    const sellable = getSellableProducts();
+    createTab('Todas', sellable.length, activeCategory === 'Todas', () => filterByCategory('Todas'));
     categories.forEach(category => {
-        const count = products.filter(p => p.category === category.name).length;
+        const count = sellable.filter(p => p.category === category.name).length;
         createTab(category.name, count, activeCategory === category.name, () => filterByCategory(category.name), category.color);
     });
 
@@ -186,8 +187,8 @@ function loadCategorySelector() {
     
     // Opción para sin categoría
     const noCategoryOption = document.createElement('option');
-    noCategoryOption.value = 'Sin Categoría';
-    noCategoryOption.textContent = 'Sin Categoría';
+    noCategoryOption.value = NO_CATEGORY;
+    noCategoryOption.textContent = NO_CATEGORY;
     selector.appendChild(noCategoryOption);
 }
 
@@ -211,20 +212,18 @@ function hideNewCategoryForm() {
 /**
  * Crea una nueva categoría desde el formulario
  */
-function createNewCategory() {
+async function createNewCategory() {
     const name = document.getElementById('new-category-name').value.trim();
     const color = document.getElementById('new-category-color').value;
-    
+
     if (!name) {
         alert(' El nombre de la categoría es obligatorio');
         return;
     }
-    
-    const newCategory = createCategory(name, color);
+
+    const newCategory = await createCategory(name, color);
     if (newCategory) {
         hideNewCategoryForm();
-        loadCategorySelector();
-        loadCategoryTabs();
         
         // Seleccionar la nueva categoría
         document.getElementById('product-category').value = newCategory.name;
@@ -235,15 +234,13 @@ function createNewCategory() {
 /**
  * Pide el nombre de una nueva categoría desde las pestañas de Venta
  */
-function promptNewCategory() {
+async function promptNewCategory() {
     const name = prompt('Nombre de la nueva categoría:');
     if (!name) return;
-    
-    const newCategory = createCategory(name);
+
+    const newCategory = await createCategory(name);
     if (newCategory) {
-        loadCategoryTabs();
-        loadCategorySelector();
-        alert(` Categoría "${newCategory.name}" creada exitosamente!`);
+alert(` Categoría "${newCategory.name}" creada exitosamente!`);
     }
 }
 
@@ -251,7 +248,7 @@ function promptNewCategory() {
  * Agregar categoría desde el formulario principal
  * @param {Event} event - Evento del formulario
  */
-function addCategoryFromForm(event) {
+async function addCategoryFromForm(event) {
     event.preventDefault();
     
     const name = document.getElementById('category-name').value.trim();
@@ -262,16 +259,11 @@ function addCategoryFromForm(event) {
         return;
     }
     
-    const newCategory = createCategory(name, color);
+    const newCategory = await createCategory(name, color);
     if (newCategory) {
         // Limpiar formulario
         document.getElementById('add-category-form').reset();
         document.getElementById('category-color').value = '#722F37';
-        
-        // Actualizar vistas
-        loadCategoryList();
-        loadCategoryTabs();
-        loadCategorySelector();
         
         alert(` Categoría "${newCategory.name}" creada exitosamente!`);
     }
@@ -319,7 +311,7 @@ function loadCategoryList() {
  * Editar categoría existente
  * @param {number} categoryId - ID de la categoría a editar
  */
-function editCategory(categoryId) {
+async function editCategory(categoryId) {
     const category = categories.find(c => c.id === categoryId);
     if (!category) {
         alert(' Categoría no encontrada');
@@ -345,25 +337,24 @@ function editCategory(categoryId) {
     }
     
     const oldName = category.name;
-    category.name = newName.trim();
-    
-    // Actualizar productos que tenían la categoría antigua
-    products.forEach(product => {
-        if (product.category === oldName) {
-            product.category = category.name;
-        }
-    });
-    
-    // La categoría activa se actualiza antes de redibujar para que siga marcada.
-    if (activeCategory === oldName) {
-        activeCategory = category.name;
+    const updatedName = newName.trim();
+
+    try {
+        await updateCategoryInApi(categoryId, { name: updatedName });
+    } catch (error) {
+        console.error('Error al renombrar categoría:', error);
+        showNotification(`No se pudo renombrar la categoría: ${error.message}`);
+        return;
     }
 
-    saveCategories();
-    saveProducts();
-    refreshCategoryViews();
+    // La categoría activa se actualiza antes de redibujar para que siga marcada.
+    if (activeCategory === oldName) {
+        activeCategory = updatedName;
+    }
+    // El servidor ya trae los productos con el nombre nuevo de su categoría.
+    await refreshCatalog();
 
-    alert(`Categoría renombrada de "${oldName}" a "${category.name}"`);
+    alert(`Categoría renombrada de "${oldName}" a "${updatedName}"`);
 }
 
 /**

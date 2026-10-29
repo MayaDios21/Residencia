@@ -147,8 +147,8 @@ async function registerInventoryMovement(event) {
 
     const { kind, item } = entry;
     try {
-        // La API solo conoce los productos de venta; los insumos viven en el navegador.
-        if (USE_API && kind === 'product') {
+        // Los productos de venta se registran en la API; los insumos siguen en el navegador.
+        if (kind === 'product') {
             const movement = { product_id: item.id, type, quantity, reason };
             const response = await createInventoryMovementInApi(movement);
             if (Number.isFinite(response?.stock_remaining)) item.stock = response.stock_remaining;
@@ -163,7 +163,7 @@ async function registerInventoryMovement(event) {
             }
             item.stock = newStock;
             item.minimum_stock = getProductMinimumStock(item);
-            if (kind === 'supply') saveSupplies(); else saveProducts();
+            saveSupplies();
         }
 
         document.getElementById('inventory-movement-form').reset();

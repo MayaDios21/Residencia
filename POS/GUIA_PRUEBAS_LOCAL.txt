@@ -62,8 +62,8 @@ trae el frontend en state.js, con sus imagenes):
 
 Se puede correr las veces que sea: solo crea lo que falta, no duplica y no
 cambia precios ni colores que ya se hayan editado. Muestra cuantas categorias
-y productos creo. Mientras el frontend no se conecte al catalogo de la API
-(Fase 7), estos productos solo se ven en /admin/ y en /api/productos/.
+y productos creo. Desde la Fase 7 el frontend lee el catalogo de la API: si la
+pantalla de Venta sale sin productos, falta correr este comando.
 
 Para validar PostgreSQL en desarrollo, configurar `DATABASE_URL` en la
 terminal del backend antes de ejecutar Django. No escribir credenciales reales
@@ -501,6 +501,8 @@ Solo la primera vez (o si cambia requirements.txt), en cualquier terminal:
   C:\Users\dmaya\Residencia\POS\.venv\Scripts\python.exe -m pip install -r C:\Users\dmaya\Residencia\POS\BakcEnd\requirements.txt
 
 Si tampoco existen los usuarios admin y cajero, crearlos con la seccion 4.
+Si la pantalla de Venta sale sin productos, cargar el menu con
+"manage.py cargar_menu" (seccion 3).
 
 TERMINAL 1 - BACKEND (Django)
 
@@ -598,3 +600,46 @@ Probar la version publicada
     se reactiva desde su panel.
   - Hasta la Fase 7 solo el login y los usuarios usan Supabase; catalogo,
     caja y ventas siguen guardandose en el navegador de cada equipo.
+
+
+14. PROBAR DESDE CELULAR O TABLETA (WI-FI LOCAL)
+
+Sirve para probar el sistema local desde otro dispositivo antes de subirlo.
+El celular y la computadora deben estar en el MISMO Wi-Fi.
+
+Ojo: https://pos-el-compita.vercel.app es la version PUBLICADA (lo ultimo que
+se subio con push) y usa otra base de datos (Supabase). Lo que se haga ahi no
+aparece en la version local, y al reves.
+
+1. Ver la IP de la computadora (en PowerShell):
+
+     ipconfig
+
+   Usar la "Direccion IPv4" del adaptador Wi-Fi, por ejemplo 192.168.100.116.
+   Puede cambiar de un dia a otro.
+
+2. TERMINAL 1 - BACKEND, cambiando la IP por la propia:
+
+     cd C:\Users\dmaya\Residencia\POS\BakcEnd
+     $env:DJANGO_SECRET_KEY="local-development-key"
+     $env:DJANGO_DEBUG="True"
+     $env:DJANGO_ALLOWED_HOSTS="localhost,127.0.0.1,192.168.100.116"
+     $env:CORS_ALLOWED_ORIGINS="http://localhost:8080,http://127.0.0.1:8080,http://192.168.100.116:8080"
+     ..\.venv\Scripts\python.exe manage.py runserver 0.0.0.0:8000
+
+   "0.0.0.0" permite conexiones desde la red, no solo desde la computadora.
+
+3. TERMINAL 2 - FRONTEND: igual que en la seccion 12.
+
+4. Si Windows pregunta por el Firewall, permitir en "Redes privadas".
+
+5. En el celular abrir:
+
+     http://192.168.100.116:8080/FronEnd/index.html
+
+   El frontend usa solo la IP de la pagina para encontrar Django en el
+   puerto 8000 (ver api.js), no hay que cambiar nada en el codigo.
+
+Si el celular no carga la pagina: revisar que sea el mismo Wi-Fi, la IP y el
+Firewall. Si carga pero el login falla: revisar que la IP este en
+DJANGO_ALLOWED_HOSTS y en CORS_ALLOWED_ORIGINS.

@@ -63,14 +63,30 @@ function handleLoginSubmit(event) {
 }
 
 /**
+ * Pide el catálogo a la API (necesita el token, por eso va después del login)
+ * y redibuja las vistas. Si el servidor no responde, avisa y deja la app sin productos.
+ */
+async function loadCatalogForSession() {
+    try {
+        await loadCatalog();
+    } catch (error) {
+        console.error('No se pudo cargar el catálogo:', error);
+        showNotification(`No se pudo cargar el catálogo: ${error.message}`);
+    }
+    refreshCategoryViews();
+    loadWarehouse();
+}
+
+/**
  * Muestra la app para la sesión activa.
  * @param {string|null} savedTab - Pantalla que estaba abierta antes de recargar.
  */
-function enterApp(savedTab = null) {
+async function enterApp(savedTab = null) {
     document.getElementById('session-loading').hidden = true;
     document.getElementById('entry-screen').hidden = true;
     document.getElementById('app-container').hidden = false;
     updateRoleNavigation();
+    await loadCatalogForSession();
 
     const isAdmin = adminSession.role === 'admin';
     const canRestoreTab = savedTab
@@ -157,6 +173,9 @@ async function logoutSession() {
     }
     adminSession = null;
     clearSessionStorage();
+    // El catálogo es del usuario que inició sesión; se vuelve a pedir en el siguiente login.
+    products = [];
+    categories = [];
     showLoginScreen();
     document.getElementById('entry-login-form').reset();
     document.getElementById('login-username').focus();

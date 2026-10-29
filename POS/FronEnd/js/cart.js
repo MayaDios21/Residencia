@@ -29,6 +29,25 @@ function addToCart(product) {
 }
 
 /**
+ * Ajusta el carrito guardado al catálogo del servidor: quita lo que ya no se
+ * vende (o que venía del catálogo viejo del navegador, con otros IDs) y toma
+ * los precios actuales.
+ */
+function syncCartWithCatalog() {
+    const itemsBefore = cart.length;
+    cart = cart.filter(item => getSellableProducts().some(product =>
+        product.id === item.id && product.name === item.name
+    ));
+    cart.forEach(item => {
+        item.price = products.find(product => product.id === item.id).price;
+    });
+    if (cart.length !== itemsBefore) {
+        showNotification('Se quitaron del carrito productos que ya no están disponibles.');
+    }
+    updateCart();
+}
+
+/**
  * Actualiza la visualización del carrito
  */
 function updateCart() {
@@ -238,7 +257,6 @@ async function confirmSale() {
                     product.stock = item.stock_remaining;
                 }
             });
-            saveProducts();
         }
 
         cart = [];
@@ -290,7 +308,6 @@ function recordSale(items, subtotal, tax, total) {
             const stock = product ? getProductStock(product) : null;
             if (product && stock !== null) product.stock = stock - item.quantity;
         });
-        saveProducts();
         saveSalesHistory();
         updateTodaySalesSummary();
     } catch (error) {

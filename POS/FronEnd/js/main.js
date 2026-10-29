@@ -1,28 +1,21 @@
 /*
  * ARRANQUE DEL SISTEMA
- * Carga los datos guardados, dibuja la interfaz y después decide si reabrir
- * la sesión guardada o mostrar el inicio de sesión. Se carga al final, después de todos
- * los demás módulos.
+ * Carga los datos guardados en el navegador, dibuja la interfaz y después
+ * decide si reabrir la sesión guardada o mostrar el inicio de sesión. El
+ * catálogo se pide a la API al entrar (ver enterApp en session.js). Se carga
+ * al final, después de todos los demás módulos.
  */
 
 /** Carga los datos de localStorage y dibuja las vistas iniciales. */
 function initializeSystem() {
     try {
-        loadCategoriesFromStorage();
-        loadProductsFromStorage();
-        markCatalogMigrated();
+        removeLegacyCatalogStorage();
         loadSuppliesFromStorage();
         loadSalesHistory();
         loadCashBoxRecords();
         loadExchangeRate();
         loadTaxRate();
         loadCartFromStorage();
-
-        // Asegura que todos los productos tengan imagen (o la del menú por defecto).
-        products.forEach(product => {
-            if (!product.image) product.image = defaultProductImages[product.name] || null;
-        });
-        saveProducts();
 
         loadCategoryTabs();
         loadCategorySelector();
@@ -52,17 +45,9 @@ window.limpiar = function() {
     location.reload();
 };
 
-/** Utilidad de consola: reemplaza el catálogo por el menú por defecto. */
-window.cargarDefecto = function() {
-    products = JSON.parse(JSON.stringify(defaultProducts));
-    saveProducts();
-    loadProducts();
-    loadCategoryTabs();
-};
-
 /**
  * Utilidad de consola: imprime el estado de productos, categorías, carrito y
- * LocalStorage para depurar.
+ * de la pantalla para depurar.
  */
 window.diagnosticar = function() {
     console.clear();
@@ -75,29 +60,9 @@ window.diagnosticar = function() {
     console.log(`  - Categorías en memoria: ${categories.length}`);
     console.log(`  - Items en carrito: ${cart.length}`);
     console.log(`  - Categoría activa: ${activeCategory}`);
-    
-    console.log('\nLOCALSTORAGE:');
-    const savedProducts = localStorage.getItem('pos_products');
-    console.log(`  - pos_products guardado: ${savedProducts ? 'SÍ' : 'NO'}`);
-    if (savedProducts) {
-        const parsed = JSON.parse(savedProducts);
-        console.log(`  - Cantidad: ${parsed.length}`);
-        if (parsed.length > 0) {
-            console.log(`  - Primer producto:`, parsed[0]);
-        }
-    }
-    
-    const savedCategories = localStorage.getItem('pos_categories');
-    console.log(`  - pos_categories guardado: ${savedCategories ? 'SÍ' : 'NO'}`);
-    if (savedCategories) {
-        const parsed = JSON.parse(savedCategories);
-        console.log(`  - Cantidad: ${parsed.length}`);
-    }
-    
-    console.log('\nPRODUCTOS POR DEFECTO DISPONIBLES:');
-    console.log(`  - Total: ${defaultProducts.length}`);
-    defaultProducts.forEach(p => console.log(`    • ${p.name} - $${p.price}`));
-    
+    console.log(`  - API: ${API_URL}`);
+    if (products.length > 0) console.log('  - Primer producto:', products[0]);
+
     console.log('\nELEMENTOS DEL DOM:');
     console.log(`  - products-grid: ${document.getElementById('products-grid') ? 'EXISTE' : 'NO EXISTE'}`);
     console.log(`  - category-tabs: ${document.getElementById('category-tabs') ? 'EXISTE' : 'NO EXISTE'}`);
@@ -105,8 +70,7 @@ window.diagnosticar = function() {
     
     console.log('\n' + '='.repeat(50));
     console.log('COMANDOS ÚTILES:');
-    console.log('  - loadProducts() → Recargar productos en vista');
+    console.log('  - refreshCatalog() → Volver a pedir el catálogo al servidor');
     console.log('  - loadCategoryTabs() → Recargar pestañas');
-    console.log('  - resetSystem() → Limpiar datos y reiniciar');
     console.log('='.repeat(50));
 }

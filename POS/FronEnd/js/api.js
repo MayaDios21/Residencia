@@ -100,6 +100,47 @@ async function logoutFromApi() {
 }
 
 /**
+ * Obtiene las categorías del backend.
+ * @returns {Promise<Object[]>} Categorías ({id, name, color, is_active}).
+ */
+async function getCategoriesFromApi() {
+    return apiRequest('/categorias/');
+}
+
+/**
+ * Crea una categoría (solo administrador).
+ * @param {{name: string, color: string}} category - Nombre y color #rrggbb.
+ * @returns {Promise<Object>} Categoría creada.
+ */
+async function createCategoryInApi(category) {
+    return apiRequest('/categorias/', {
+        method: 'POST',
+        body: JSON.stringify(category)
+    });
+}
+
+/**
+ * Actualiza parcialmente una categoría (solo administrador).
+ * @param {number} categoryId - ID de la categoría.
+ * @param {Object} changes - Campos a cambiar (name, color, is_active).
+ * @returns {Promise<Object>} Categoría actualizada.
+ */
+async function updateCategoryInApi(categoryId, changes) {
+    return apiRequest(`/categorias/${categoryId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes)
+    });
+}
+
+/**
+ * Elimina una categoría; sus productos quedan sin categoría (solo administrador).
+ * @param {number} categoryId - ID de la categoría.
+ */
+async function deleteCategoryInApi(categoryId) {
+    return apiRequest(`/categorias/${categoryId}/`, { method: 'DELETE' });
+}
+
+/**
  * Obtiene el catálogo de productos del backend.
  * @returns {Promise<Object[]>}
  */
@@ -117,6 +158,29 @@ async function createProductInApi(product) {
         method: 'POST',
         body: JSON.stringify(product)
     });
+}
+
+/**
+ * Actualiza parcialmente un producto (solo administrador). El stock no se
+ * cambia aquí: solo con movimientos de inventario o ventas.
+ * @param {number} productId - ID del producto.
+ * @param {Object} changes - Campos a cambiar (name, price, category, image…).
+ * @returns {Promise<Object>} Producto actualizado.
+ */
+async function updateProductInApi(productId, changes) {
+    return apiRequest(`/productos/${productId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes)
+    });
+}
+
+/**
+ * Elimina un producto (solo administrador). Responde 409 si tiene historial
+ * de inventario: en ese caso se desactiva en lugar de borrarse.
+ * @param {number} productId - ID del producto.
+ */
+async function deleteProductInApi(productId) {
+    return apiRequest(`/productos/${productId}/`, { method: 'DELETE' });
 }
 
 /**

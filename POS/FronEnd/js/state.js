@@ -4,56 +4,20 @@
  * configuración, sesión y caja. Se carga primero; los demás módulos lo usan.
  */
 
-// Base de datos de productos en memoria
+// Catálogo cargado de la API al iniciar sesión (los IDs son los del servidor).
+// El menú inicial se crea en la base con `python manage.py cargar_menu`.
 let products = [];
 
-// Base de datos de categorías
 let categories = [];
 
 // Insumos del almacén que no se venden (vasos, platos, cucharas…).
 let supplies = [];
 let nextSupplyId = 1;
 
-// Productos por defecto (solo se cargan la primera vez)
-const defaultProducts = [
-    { id: 1, name: "Taco de Birria", price: 30.00, category: "Tacos", image: "../Public/assets/imagenes/Taco Birria.jpg" },
-    { id: 2, name: "Taco de Birria Harina", price: 35.00, category: "Tacos", image: "../Public/assets/imagenes/Taco Birria Harina.jpg" },
-    { id: 3, name: "Quesabirria", price: 55.00, category: "Quesadillas", image: "../Public/assets/imagenes/Quesabirria.jpg" },
-    { id: 4, name: "Quesabirria Harina", price: 60.00, category: "Quesadillas", image: "../Public/assets/imagenes/Quesabirria Harina.jpg" },
-    { id: 5, name: "Consomé", price: 25.00, category: "Extras", image: "../Public/assets/imagenes/Consome.jpg" },
-    { id: 6, name: "Consomé con Carne", price: 35.00, category: "Extras", image: "../Public/assets/imagenes/Consome Con Carne.jpg" },
-    { id: 7, name: "Agua Grande", price: 20.00, category: "Bebidas", image: "../Public/assets/imagenes/Agua Grande.jpg", track_inventory: true },
-    { id: 8, name: "Coca Cola 600ml", price: 25.00, category: "Bebidas", image: "../Public/assets/imagenes/Cocacola-lata.png", track_inventory: true }
-];
-
-const defaultProductImages = {
-    "Taco de Birria": "../Public/assets/imagenes/Taco Birria.jpg",
-    "Taco de Birria Harina": "../Public/assets/imagenes/Taco Birria Harina.jpg",
-    "Quesabirria": "../Public/assets/imagenes/Quesabirria.jpg",
-    "Quesabirria Harina": "../Public/assets/imagenes/Quesabirria Harina.jpg",
-    "Consomé": "../Public/assets/imagenes/Consome.jpg",
-    "Consomé con Carne": "../Public/assets/imagenes/Consome Con Carne.jpg",
-    "Agua Grande": "../Public/assets/imagenes/Agua Grande.jpg",
-    "Coca Cola 600ml": "../Public/assets/imagenes/Cocacola-lata.png"
-};
-
-// Categorías por defecto
-const defaultCategories = [
-    { id: 1, name: "Tacos", color: "#d35400" },
-    { id: 2, name: "Quesadillas", color: "#8e44ad" },
-    { id: 3, name: "Bebidas", color: "#3498db" },
-    { id: 4, name: "Extras", color: "#27ae60" }
-];
-
 // Carrito de compras
 let cart = [];
 
 let pendingSale = null;
-
-// ID para nuevos productos y categorías
-let nextProductId = 9;
-
-let nextCategoryId = 5;
 
 // Categoría activa para filtrar productos
 let activeCategory = "Todas";

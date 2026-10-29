@@ -37,6 +37,8 @@ function isInventoryTracked(product) {
 function getProductStock(product) {
     // Los productos de venta sin control de almacén nunca limitan la venta.
     if (product?.track_inventory === false) return null;
+    // La API manda null cuando aún no se cuenta; Number(null) daría 0.
+    if (product?.stock === null || product?.stock === undefined) return null;
     return Number.isFinite(Number(product.stock)) ? Number(product.stock) : null;
 }
 

@@ -101,36 +101,17 @@ function resetSystem() {
 
     openActionModal(
         'Reiniciar sistema',
-        'Esto eliminará TODOS los datos guardados y cargará los productos por defecto.',
+        'Esto eliminará los datos guardados en este navegador. El catálogo no se borra porque está en el servidor.',
         'Reiniciar sistema',
         () => {
         try {
-            // Limpiar localStorage completamente
+            // Limpiar localStorage completamente. El catálogo no se toca: vive
+            // en el servidor y se vuelve a cargar al iniciar sesión.
             localStorage.clear();
-            
-            // Reiniciar todas las variables globales
-            products = [];
-            categories = [];
             cart = [];
             activeCategory = 'Todas';
-            nextProductId = 9;
-            nextCategoryId = 5;
-            
-            // Cargar valores por defecto
-            products = JSON.parse(JSON.stringify(defaultProducts));
-            categories = JSON.parse(JSON.stringify(defaultCategories));
-            
-            // Asegurar que todos los productos tengan imagen
-            products.forEach(p => {
-                if (!p.hasOwnProperty('image')) p.image = null;
-            });
-            
-            // Guardar en localStorage
-            saveProducts();
-            saveCategories();
             saveCart();
-            
-            
+
             showNotification('Sistema reiniciado correctamente. Recargando página...');
             window.location.reload();
         } catch (error) {
