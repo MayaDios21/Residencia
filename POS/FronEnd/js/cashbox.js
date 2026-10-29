@@ -216,9 +216,7 @@ async function saveCashBoxRecord() {
         return;
     }
 
-    // Mientras las ventas sigan en el navegador (bloque 3) se cierran también aquí.
-    closeSalesForDate(closed.business_date, closed.closed_at);
-
+    // El servidor ya cerró las ventas de esa jornada.
     document.getElementById('cashbox-form').reset();
     document.getElementById('cashbox-results').hidden = true;
     resetCashBoxCalculation();
@@ -226,6 +224,7 @@ async function saveCashBoxRecord() {
     await refreshCashBoxView();
     loadProducts();
     loadSalesHistoryTab();
+    updateTodaySalesSummary();
     alert(`Cierre del ${formatBusinessDate(closed.business_date)} guardado: ${closed.sales_count} ventas por $${Number(closed.sales_total).toFixed(2)}. Esperado en caja: $${Number(closed.expected_cash).toFixed(2)}.`);
 }
 

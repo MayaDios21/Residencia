@@ -86,6 +86,7 @@ async function loadSessionData() {
     refreshCategoryViews();
     loadWarehouse();
     renderCashBoxTab();
+    updateTodaySalesSummary();
 }
 
 /**

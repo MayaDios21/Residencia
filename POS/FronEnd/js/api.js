@@ -301,6 +301,58 @@ async function createSaleInApi(sale) {
     });
 }
 
+/**
+ * Arma la parte "?a=1&b=2" de una URL con los filtros que tengan valor.
+ * @param {Object} params - Por ejemplo {desde, hasta, q, estado}.
+ * @returns {string} Cadena vacía si no hay filtros.
+ */
+function buildQueryString(params = {}) {
+    const query = new URLSearchParams(
+        Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '')
+    ).toString();
+    return query ? `?${query}` : '';
+}
+
+/**
+ * Historial de ventas. El cajero solo recibe las de la jornada de hoy.
+ * @param {{desde?: string, hasta?: string, q?: string, estado?: string}} [filters] - Fechas AAAA-MM-DD.
+ * @returns {Promise<Object[]>}
+ */
+async function getSalesFromApi(filters) {
+    return apiRequest(`/ventas/${buildQueryString(filters)}`);
+}
+
+/**
+ * Totales de las ventas filtradas, sin contar las canceladas.
+ * @param {Object} [filters] - Los mismos filtros que getSalesFromApi.
+ * @returns {Promise<{total_sales: string, transactions: number, items: number, average_sale: string}>}
+ */
+async function getSalesSummaryFromApi(filters) {
+    return apiRequest(`/ventas/resumen/${buildQueryString(filters)}`);
+}
+
+/**
+ * Revisa que los montos de las ventas filtradas cuadren (solo administrador).
+ * @param {Object} [filters] - Los mismos filtros que getSalesFromApi.
+ * @returns {Promise<{checked: number, valid: number, with_errors: number, errors: Object[]}>}
+ */
+async function verifySalesInApi(filters) {
+    return apiRequest(`/ventas/verificar/${buildQueryString(filters)}`);
+}
+
+/**
+ * Cancela una venta de la jornada abierta y regresa su stock (solo administrador).
+ * @param {number} saleId - ID de la venta.
+ * @param {string} reason - Motivo (puede ir vacío).
+ * @returns {Promise<Object>} Venta cancelada.
+ */
+async function cancelSaleInApi(saleId, reason) {
+    return apiRequest(`/ventas/${saleId}/cancelar/`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+    });
+}
+
 // Gestión de usuarios (solo administrador). Siempre usa la API, sin importar
 // USE_API, porque los usuarios solo existen en el backend.
 async function getUsersFromApi() {

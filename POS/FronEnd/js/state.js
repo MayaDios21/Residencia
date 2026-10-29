@@ -32,7 +32,8 @@ let TAX_RATE = 0.08; // 8% de IVA (valor por defecto)
 // Variable para almacenar el tipo de cambio
 let exchangeRate = 19.50; // Tipo de cambio por defecto
 
-// Historial de ventas
+// Ventas locales de versiones anteriores: ya no se llenan (las ventas viven en
+// la API). Queda vacío solo mientras el panel (dashboard.js) se conecta a la API.
 let salesHistory = [];
 
 // Sesión activa ({ role, displayName }); se guarda en localStorage para sobrevivir recargas.

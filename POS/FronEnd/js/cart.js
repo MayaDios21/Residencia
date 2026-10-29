@@ -1,7 +1,7 @@
 /*
  * CARRITO Y VENTA
- * Productos seleccionados, cantidades, totales con IVA, confirmación de la
- * venta y registro en el historial.
+ * Productos seleccionados, cantidades, totales con IVA y confirmación de la
+ * venta, que se registra en el servidor.
  */
 
 /**
@@ -227,8 +227,9 @@ function closeSaleModal() {
 }
 
 /**
- * Guarda la venta confirmada (en la API o en el navegador), descuenta existencias
- * y vacía el carrito.
+ * Registra la venta confirmada en el servidor, que calcula precios, IVA y
+ * total y descuenta existencias. Sin respuesta del servidor la venta no se
+ * registra: se avisa y el carrito se queda como estaba para reintentar.
  */
 async function confirmSale() {
     if (!pendingSale) return;
@@ -237,80 +238,43 @@ async function confirmSale() {
     if (confirmButton) confirmButton.disabled = true;
 
     try {
-        let apiSale = null;
-        if (USE_API) {
-            apiSale = await createSaleInApi({
-                items: sale.items.map(item => ({
-                    product_id: item.id,
-                    quantity: item.quantity
-                })),
-                payment: 'Efectivo'
-            });
-        }
+        const apiSale = await createSaleInApi({
+            items: sale.items.map(item => ({
+                product_id: item.id,
+                quantity: item.quantity
+            })),
+            payment: 'Efectivo'
+        });
 
-        recordSale(sale.items, sale.subtotal, sale.tax, sale.total);
-
-        if (apiSale?.items) {
-            apiSale.items.forEach(item => {
-                const product = products.find(productItem => productItem.id === item.product_id);
-                if (product && Number.isFinite(item.stock_remaining)) {
-                    product.stock = item.stock_remaining;
-                }
-            });
-        }
+        // El servidor devuelve cuánto quedó de cada producto controlado.
+        apiSale.items.forEach(item => {
+            const product = products.find(productItem => productItem.id === item.product_id);
+            if (product && Number.isFinite(item.stock_remaining)) {
+                product.stock = item.stock_remaining;
+            }
+        });
 
         cart = [];
         updateCart();
         closeSaleModal();
-        showNotification(`Venta registrada por $${sale.total.toFixed(2)} MXN`);
+        showNotification(`Venta #${apiSale.id} registrada por $${Number(apiSale.total).toFixed(2)} MXN`);
         showTab('pos');
-    } catch (error) {
-        if (error.status === 409) {
-            showNotification('No hay existencias suficientes para completar la venta.');
-        } else {
-            showNotification('No se pudo registrar la venta. Intenta nuevamente.');
-        }
-        console.error('Error al registrar venta en el servidor:', error);
-    } finally {
-        if (confirmButton) confirmButton.disabled = false;
-    }
-}
-
-/**
- * Registra una venta en el historial
- * @param {Array} items - Artículos vendidos
- * @param {number} subtotal - Subtotal de la venta
- * @param {number} tax - IVA de la venta
- * @param {number} total - Total de la venta
- */
-function recordSale(items, subtotal, tax, total) {
-    try {
-        const sale = {
-            id: Date.now(),
-            date: new Date().toISOString(),
-            dateKey: getLocalDateKey(),
-            status: 'abierta',
-            items: items.reduce((sum, item) => sum + item.quantity, 0),
-            subtotal: subtotal,
-            tax: tax,
-            total: total,
-            payment: 'Efectivo',
-            products: items.map(item => ({
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity
-            }))
-        };
-        
-        salesHistory.push(sale);
-        items.forEach(item => {
-            const product = products.find(productItem => productItem.id === item.id);
-            const stock = product ? getProductStock(product) : null;
-            if (product && stock !== null) product.stock = stock - item.quantity;
-        });
-        saveSalesHistory();
         updateTodaySalesSummary();
     } catch (error) {
-        console.error('Error al registrar venta:', error);
+        console.error('Error al registrar venta en el servidor:', error);
+        if (error.status) {
+            // 409: sin caja abierta o sin existencias; 400: producto no disponible.
+            showNotification(`No se registró la venta: ${error.message}`);
+            if (error.status === 409) {
+                // Otro dispositivo pudo cerrar la caja o vender lo último: se toma el estado real.
+                Promise.all([refreshCatalog(), loadCashBoxState()])
+                    .then(() => loadProducts())
+                    .catch(reloadError => console.error('Error al recargar datos:', reloadError));
+            }
+        } else {
+            showNotification('Sin conexión con el servidor: la venta NO se registró. Intenta de nuevo.');
+        }
+    } finally {
+        if (confirmButton) confirmButton.disabled = false;
     }
 }

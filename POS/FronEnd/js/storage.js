@@ -1,15 +1,16 @@
 /*
  * PERSISTENCIA (localStorage)
- * Guarda y recupera ventas, carrito e insumos. El catálogo, la
- * configuración y la caja ya no se guardan aquí: vienen de la API.
+ * Guarda y recupera el carrito en curso y los insumos. El catálogo, la
+ * configuración, la caja y las ventas ya no se guardan aquí: vienen de la API.
  */
 
-// Claves de cuando el catálogo, la configuración y la caja se guardaban en el
-// navegador. Ahora viven en el servidor, así que se borran para no dejar datos viejos.
+// Claves de cuando el catálogo, la configuración, la caja y las ventas se
+// guardaban en el navegador. Ahora viven en el servidor, así que se borran para no dejar datos viejos.
 const LEGACY_STORAGE_KEYS = [
     'pos_products', 'pos_nextProductId', 'pos_categories', 'pos_nextCategoryId', 'pos_catalog_version',
     'pos_exchangeRate', 'pos_taxRate',
-    'pos_cashbox_records', 'pos_nextCashBoxId', 'pos_opening_cash'
+    'pos_cashbox_records', 'pos_nextCashBoxId', 'pos_opening_cash',
+    'pos_salesHistory'
 ];
 
 /** Borra del navegador los datos que guardaban las versiones anteriores. */
@@ -32,33 +33,6 @@ function loadSuppliesFromStorage() {
         supplies = [];
     }
     nextSupplyId = supplies.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
-}
-
-/**
- * Carga el historial de ventas desde LocalStorage
- */
-function loadSalesHistory() {
-    try {
-        const saved = localStorage.getItem('pos_salesHistory');
-        if (saved) {
-            salesHistory = JSON.parse(saved);
-            salesHistory = salesHistory.map(sale => ({
-                ...sale,
-                dateKey: sale.dateKey || getLocalDateKey(new Date(sale.date)),
-                status: sale.status || 'abierta'
-            }));
-        } else {
-            salesHistory = [];
-        }
-    } catch (error) {
-        console.error('Error al cargar historial de ventas:', error);
-        salesHistory = [];
-    }
-}
-
-/** Guarda el historial de ventas en LocalStorage. */
-function saveSalesHistory() {
-    localStorage.setItem('pos_salesHistory', JSON.stringify(salesHistory));
 }
 
 /**

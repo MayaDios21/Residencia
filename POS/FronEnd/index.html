@@ -602,7 +602,7 @@
                     </div>
                     <div class="toolbar">
                         <label class="inline-field" for="date-filter">Filtrar por
-                            <select id="date-filter" onchange="filterSales()">
+                            <select id="date-filter" onchange="filterSalesByPeriod()">
                                 <option value="today">Hoy</option>
                                 <option value="week">Esta semana</option>
                                 <option value="month">Este mes</option>
@@ -620,10 +620,10 @@
                     </div>
                 </div>
 
+                <!-- Las ventas no se borran: el administrador las cancela una por una en la lista. -->
                 <div class="toolbar toolbar-actions">
                     <button class="btn btn-secondary btn-compact" type="button" onclick="exportSales()">Exportar</button>
-                    <button class="btn btn-secondary btn-compact" type="button" onclick="verifySalesIntegrity()">Verificar</button>
-                    <button class="btn btn-danger btn-compact" type="button" onclick="clearSalesHistory()">Borrar historial</button>
+                    <button class="btn btn-secondary btn-compact" type="button" id="verify-sales-btn" onclick="verifySalesIntegrity()">Verificar</button>
                 </div>
 
                 <div class="sales-summary">
@@ -648,7 +648,7 @@
                 <div class="panel panel-flush">
                     <div class="panel-heading panel-heading-bar">
                         <h3>Lista de ventas</h3>
-                        <input type="search" class="search-input" id="sales-search" placeholder="Buscar por ID o productos…" onkeyup="searchSales()" aria-label="Buscar ventas" autocomplete="off">
+                        <input type="search" class="search-input" id="sales-search" placeholder="Buscar por ID o productos…" oninput="searchSales()" aria-label="Buscar ventas" autocomplete="off">
                     </div>
                     <div id="sales-list" class="sales-list">
                         <div class="empty-sales">

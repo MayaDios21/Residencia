@@ -1187,6 +1187,17 @@ input[type="checkbox"] {
     color: var(--warning);
 }
 
+.sale-status.cancelled {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+/* Venta cancelada: su total ya no cuenta, por eso se tacha. */
+.sale-item.is-cancelled .sale-total {
+    color: var(--muted);
+    text-decoration: line-through;
+}
+
 .warehouse-status.unknown {
     background: #edf0f2;
     color: #59636b;
