@@ -1,16 +1,125 @@
-<!-- Referencia de la API de Django para conectar el frontend (Fase 7, Proyecto 1). -->
+<!-- Cambios del frontend en la Fase 7 y referencia de la API (Proyecto 1). -->
 
-# API del POS para el frontend
+# Cambios del frontend
 
-Guía para conectar `FronEnd/js/` con el backend en la Fase 7. Todo lo que aparece
-aquí ya existe y tiene pruebas. Si al conectar algo falta un dato, un filtro o un
-campo, avisa al equipo del backend en lugar de calcularlo en el navegador.
+Resumen de lo que cambió en `FronEnd/` durante la **Fase 7** (2026-10-29), cuando
+todas las pantallas se conectaron al servidor. Desde entonces los datos viven en
+la base de datos y se ven igual en la computadora y en el celular.
 
-**Estado (2026-10-29):** la Fase 7 ya conectó todas las pantallas a esta API
-(`USE_API` ya no existe). Este documento sigue sirviendo como referencia al
-cambiar el frontend.
+- **Parte 1:** lo que cambió a la vista, pantalla por pantalla.
+- **Parte 2:** la referencia de la API, para seguir modificando el frontend.
 
-## 1. Lo básico
+> Antes de editar `FronEnd/` haz `git pull`: cambiaron `index.html`,
+> `css/styles.css` y casi todos los archivos de `js/`.
+
+## Parte 1. Cambios visuales
+
+### Reglas generales
+
+- **Ya no hay datos en el navegador.** Productos, categorías, ventas, caja,
+  configuración e insumos se piden al servidor al entrar. `localStorage` solo
+  guarda el token, la sesión, la pestaña abierta y el carrito.
+- **Errores en avisos (toasts).** Si algo falla aparece un aviso abajo con el
+  mensaje del servidor, por ejemplo `No se pudo agregar el producto: ...`.
+- **Ventana propia para pedir datos.** Ya no sale el `prompt()` del navegador.
+  Se usa un modal con el mismo estilo que los de confirmar y guardar
+  (`#input-modal` en `index.html`, `openInputModal()` en `js/ui.js`). Tiene
+  título, campo, mensaje de error en rojo, **Cancelar** y **Guardar**, y se
+  cierra con Esc o al hacer clic fuera. Se usa en: Nueva categoría, Renombrar
+  categoría, Cambiar stock mínimo y Cancelar venta (este con el botón en rojo).
+- **Nada se borra si tiene historial.** Si un producto o insumo ya tiene
+  movimientos, al darle **Eliminar** sale un modal que ofrece **desactivarlo**.
+
+### Login
+
+- El texto bajo la contraseña ahora dice: *"Entra con el usuario y la contraseña
+  que te dio el administrador."* (antes: "Acceso seguro mediante el servidor
+  local de Django").
+
+### Venta y carrito
+
+- Los productos **desactivados** no aparecen para vender, y los contadores de
+  las pestañas de categoría ya no los cuentan.
+- Si un producto del carrito guardado ya no existe o se desactivó, se quita solo
+  y sale el aviso *"Se quitaron del carrito productos que ya no están
+  disponibles."*
+- Al cobrar sale *"Venta #N registrada por $X MXN"* con el número que da el
+  servidor. Sin internet sale *"Sin conexión con el servidor: la venta NO se
+  registró. Intenta de nuevo."* y el carrito se queda como estaba.
+
+### Productos y categorías (administrador)
+
+- En la lista de productos, uno desactivado muestra la etiqueta
+  **"Desactivado"** y su botón cambia de **Eliminar** a **Activar**.
+- Nueva categoría (desde la pestaña **+ Nueva categoría** de Venta) y Editar
+  categoría usan el modal propio en lugar del `prompt()`.
+
+### Ventas
+
+- **"Borrar historial" se quitó.** Las ventas ya no se borran.
+- Cada venta de la jornada abierta tiene un botón rojo **Cancelar** (solo el
+  administrador). Pide el motivo en el modal propio.
+- Una venta cancelada muestra el estado **Cancelada** (rojo, clase
+  `.sale-status.cancelled`), su total **tachado** (`.sale-item.is-cancelled`) y
+  la línea *"Cancelada por usuario: motivo"*.
+- Cada venta muestra también **quién la cobró**, junto a la fecha y hora.
+- El botón **Verificar** (`#verify-sales-btn`) solo lo ve el administrador.
+- El buscador responde al escribir, pegar o borrar (`oninput` en lugar de
+  `onkeyup`).
+
+### Caja
+
+- El cajero abre y cierra caja. El administrador solo ve el **Historial de
+  cierres** (`#cashbox-history`), que el cajero ya no ve.
+- **"Limpiar historial" se quitó.** Los cierres no se borran.
+- La última columna de la tabla de cierres ahora se llama **"Cerró"** y dice
+  quién cerró la caja (antes era una columna de acciones sin título).
+- Si quedó abierta la caja de un día anterior, el subtítulo avisa que hay que
+  cerrarla antes de abrir la de hoy.
+
+### Panel (administrador)
+
+- **Alertas de reabastecimiento:** debajo de cada nombre sale el nivel
+  (**Crítico** en rojo, **Bajo** en naranja, Sin registrar, Bien) y cuánto pedir,
+  por ejemplo *"Crítico · pedir 6"* (clases `.dashboard-stock-detail.level-*`).
+  A la derecha queda `stock / mínimo`.
+- **Ventas recientes:** muestra las 5 más recientes de los últimos 30 días; las
+  canceladas lo indican junto a los artículos.
+
+### Almacén (administrador)
+
+- Aparecen los **insumos** (vasos, servilletas, etc.) junto a los productos con
+  inventario.
+- Botón nuevo **Mínimo** en cada fila para cambiar el stock mínimo con el modal
+  propio.
+- Los insumos desactivados muestran **Activar** en lugar de **Eliminar**.
+- Los botones de cada fila se **apilan** (`.warehouse-actions`) para que
+  **Eliminar** no se corte en pantallas angostas.
+
+### Configuración (administrador)
+
+- **El panel "Mantenimiento" (Reiniciar sistema) se quitó.** Ya no hay datos
+  locales que reiniciar.
+- IVA y tipo de cambio se guardan en el servidor y aplican en todos los
+  dispositivos.
+
+### CSS nuevo en `styles.css`
+
+| Clase | Para qué |
+|---|---|
+| `.warehouse-actions` | Apilar los botones de la tabla del almacén |
+| `.sale-status.cancelled` | Etiqueta roja de venta cancelada |
+| `.sale-item.is-cancelled .sale-total` | Total tachado y gris |
+| `.dashboard-stock-detail` (`.level-critico`, `.level-bajo`) | Nivel y cuánto pedir en las alertas |
+| `.input-modal-field`, `.input-modal-error` | Campo y error del modal propio |
+
+## Parte 2. Referencia de la API
+
+Todo lo que aparece aquí ya existe y tiene pruebas. Si al cambiar algo falta un
+dato, un filtro o un campo, avisa al equipo del backend en lugar de calcularlo en
+el navegador.
+
+### 1. Lo básico
 
 - **Dirección:** `API_URL` en `js/api.js`. En local apunta a
   `http://<host>:8000/api`; publicado, a `/api` (mismo dominio).
@@ -31,7 +140,7 @@ cambiar el frontend.
   (`nextProductId`, `nextCategoryId`, etc. desaparecen).
 - **Roles:** `admin` y `cashier` (en la Fase 8 se agrega `waiter`).
 
-## 2. Sesión — `/api/auth/` (ya conectado)
+### 2. Sesión — `/api/auth/` (ya conectado)
 
 | Método y ruta | Quién | Envía | Responde |
 |---|---|---|---|
@@ -39,7 +148,7 @@ cambiar el frontend.
 | `POST /api/auth/logout/` | sesión | — | `204` |
 | `GET /api/auth/me/` | sesión | — | `{id, username, first_name, last_name, role}` |
 
-## 3. Catálogo — `products.js`, `categories.js`
+### 3. Catálogo — `products.js`, `categories.js`
 
 | Método y ruta | Quién | Notas |
 |---|---|---|
@@ -75,7 +184,7 @@ productos de `defaultCategories`/`defaultProducts` con las mismas imágenes. No
 duplica ni pisa cambios si se corre otra vez. Después de esto ya no hacen falta
 los datos por defecto de `state.js`.
 
-## 4. Configuración — `settings.js`
+### 4. Configuración — `settings.js`
 
 | Método y ruta | Quién | Envía / responde |
 |---|---|---|
@@ -84,7 +193,7 @@ los datos por defecto de `state.js`.
 
 `tax_rate` es fracción: `0.08` = 8 %. El servidor calcula IVA y totales con estos valores.
 
-## 5. Caja — `cashbox.js`
+### 5. Caja — `cashbox.js`
 
 | Método y ruta | Quién | Notas |
 |---|---|---|
@@ -117,7 +226,7 @@ Jornada (`session`, respuesta de abrir/cerrar):
 ```
 Esperado al cerrar = fondo inicial + ventas del día − gastos menores.
 
-## 6. Ventas e historial — `cart.js`, `sales.js`
+### 6. Ventas e historial — `cart.js`, `sales.js`
 
 | Método y ruta | Quién | Notas |
 |---|---|---|
@@ -129,8 +238,8 @@ Esperado al cerrar = fondo inicial + ventas del día − gastos menores.
 | `GET /api/ventas/verificar/` | admin | Revisa que los montos cuadren |
 | `POST /api/ventas/{id}/cancelar/` | admin | `{reason}` opcional. Regresa el stock. Solo ventas de la jornada abierta |
 
-Filtros de `GET /api/ventas/`, `resumen/` y `exportar/` (para los filtros de la
-pantalla Ventas, hoy sin conectar):
+Filtros de `GET /api/ventas/`, `resumen/` y `exportar/` (los usa la
+pantalla Ventas):
 - `?desde=AAAA-MM-DD&hasta=AAAA-MM-DD`
 - `?q=` número de venta (acepta `#12`) o nombre de producto
 - `?estado=abierta|cerrada|cancelada`
@@ -163,7 +272,7 @@ Responde `201` con la venta:
   `{detail, product_id, available}`; `400` producto inexistente o inactivo.
 - El único método de pago es `"Efectivo"`.
 
-## 7. Panel — `dashboard.js` (solo admin)
+### 7. Panel — `dashboard.js` (solo admin)
 
 Todos aceptan `?desde=` y `?hasta=` y no cuentan ventas canceladas.
 
@@ -175,7 +284,7 @@ Todos aceptan `?desde=` y `?hasta=` y no cuentan ventas canceladas.
 | `GET /api/reportes/por-categoria/` | `[{category, units, total}]` |
 | `GET /api/inventario/alertas/` | Ver sección 8 |
 
-## 8. Almacén — `warehouse.js` (solo admin)
+### 8. Almacén — `warehouse.js` (solo admin)
 
 | Método y ruta | Notas |
 |---|---|
@@ -208,13 +317,13 @@ Alertas (`?todos=true` incluye también los que están bien):
 > decidió incluirlos (2026-10-29) y ya están conectados en `warehouse.js` y
 > `dashboard.js`.
 
-## 9. Usuarios — `users.js` (ya conectado)
+### 9. Usuarios — `users.js` (ya conectado)
 
 `/api/usuarios/` (admin): listar, crear `{username, first_name, last_name, role, password}`,
 `PATCH` `{first_name, last_name, role, is_active}` y
 `POST /api/usuarios/{id}/restablecer-contrasena/` `{password}`. Sin borrar: se desactiva.
 
-## 10. Probar la API sin el frontend
+### 10. Probar la API sin el frontend
 
 Con Django en local y `DJANGO_DEBUG=True`, entra a `http://127.0.0.1:8000/admin/`
 como admin y luego abre cualquier ruta (por ejemplo
