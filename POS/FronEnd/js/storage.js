@@ -1,38 +1,21 @@
 /*
  * PERSISTENCIA (localStorage)
- * Guarda y recupera el carrito en curso y los insumos. El catálogo, la
- * configuración, la caja y las ventas ya no se guardan aquí: vienen de la API.
+ * Guarda y recupera el carrito en curso. El catálogo, la configuración, la
+ * caja, las ventas y los insumos ya no se guardan aquí: vienen de la API.
  */
 
-// Claves de cuando el catálogo, la configuración, la caja y las ventas se
-// guardaban en el navegador. Ahora viven en el servidor, así que se borran para no dejar datos viejos.
+// Claves de cuando el catálogo, la configuración, la caja, las ventas y los
+// insumos se guardaban en el navegador. Ahora viven en el servidor, así que se borran para no dejar datos viejos.
 const LEGACY_STORAGE_KEYS = [
     'pos_products', 'pos_nextProductId', 'pos_categories', 'pos_nextCategoryId', 'pos_catalog_version',
     'pos_exchangeRate', 'pos_taxRate',
     'pos_cashbox_records', 'pos_nextCashBoxId', 'pos_opening_cash',
-    'pos_salesHistory'
+    'pos_salesHistory', 'pos_supplies'
 ];
 
 /** Borra del navegador los datos que guardaban las versiones anteriores. */
 function removeLegacyStorage() {
     LEGACY_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
-}
-
-/** Guarda los insumos del almacén en LocalStorage. */
-function saveSupplies() {
-    localStorage.setItem('pos_supplies', JSON.stringify(supplies));
-}
-
-/** Carga los insumos del almacén (vasos, platos…); una lista vacía es válida. */
-function loadSuppliesFromStorage() {
-    try {
-        const parsed = JSON.parse(localStorage.getItem('pos_supplies'));
-        supplies = Array.isArray(parsed) ? parsed.filter(item => item && item.id && item.name) : [];
-    } catch (error) {
-        console.error('Error al cargar insumos:', error);
-        supplies = [];
-    }
-    nextSupplyId = supplies.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
 }
 
 /**

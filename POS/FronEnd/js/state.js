@@ -10,9 +10,9 @@ let products = [];
 
 let categories = [];
 
-// Insumos del almacén que no se venden (vasos, platos, cucharas…).
+// Insumos del almacén que no se venden (vasos, platos, cucharas…). Se cargan
+// de la API al iniciar sesión, solo para el administrador.
 let supplies = [];
-let nextSupplyId = 1;
 
 // Carrito de compras
 let cart = [];
@@ -31,10 +31,6 @@ let TAX_RATE = 0.08; // 8% de IVA (valor por defecto)
 
 // Variable para almacenar el tipo de cambio
 let exchangeRate = 19.50; // Tipo de cambio por defecto
-
-// Ventas locales de versiones anteriores: ya no se llenan (las ventas viven en
-// la API). Queda vacío solo mientras el panel (dashboard.js) se conecta a la API.
-let salesHistory = [];
 
 // Sesión activa ({ role, displayName }); se guarda en localStorage para sobrevivir recargas.
 let adminSession = null;

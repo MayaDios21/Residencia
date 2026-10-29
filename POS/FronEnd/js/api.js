@@ -278,8 +278,77 @@ async function getCashBoxClosingsFromApi() {
 }
 
 /**
+ * Insumos del almacén que no se venden (vasos, platos…), solo administrador.
+ * @returns {Promise<Object[]>} Insumos ({id, name, stock, minimum_stock, is_active}).
+ */
+async function getSuppliesFromApi() {
+    return apiRequest('/inventario/insumos/');
+}
+
+/**
+ * Da de alta un insumo; su stock empieza sin registrar.
+ * @param {{name: string, minimum_stock: number}} supply
+ * @returns {Promise<Object>} Insumo creado.
+ */
+async function createSupplyInApi(supply) {
+    return apiRequest('/inventario/insumos/', {
+        method: 'POST',
+        body: JSON.stringify(supply)
+    });
+}
+
+/**
+ * Actualiza parcialmente un insumo (por ejemplo is_active).
+ * @param {number} supplyId - ID del insumo.
+ * @param {Object} changes - Campos a cambiar.
+ * @returns {Promise<Object>} Insumo actualizado.
+ */
+async function updateSupplyInApi(supplyId, changes) {
+    return apiRequest(`/inventario/insumos/${supplyId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(changes)
+    });
+}
+
+/**
+ * Elimina un insumo. Responde 409 si tiene historial: entonces se desactiva.
+ * @param {number} supplyId - ID del insumo.
+ */
+async function deleteSupplyInApi(supplyId) {
+    return apiRequest(`/inventario/insumos/${supplyId}/`, { method: 'DELETE' });
+}
+
+/**
+ * Alertas de reabastecimiento: productos controlados e insumos que requieren
+ * atención (crítico, bajo o sin registrar), con la cantidad sugerida a pedir.
+ * @returns {Promise<{window_days: number, lead_days: number, items: Object[]}>}
+ */
+async function getRestockAlertsFromApi() {
+    return apiRequest('/inventario/alertas/');
+}
+
+/**
+ * Totales de ventas del periodo para el panel (sin canceladas).
+ * @param {{desde?: string, hasta?: string}} [range] - Fechas AAAA-MM-DD de la jornada.
+ * @returns {Promise<{total_sales: string, transactions: number, items: number, average_sale: string}>}
+ */
+async function getReportSummaryFromApi(range) {
+    return apiRequest(`/reportes/resumen/${buildQueryString(range)}`);
+}
+
+/**
+ * Total vendido por día, con los días sin ventas en cero (máximo 366 días).
+ * @param {{desde?: string, hasta?: string}} [range] - Sin rango: últimos 7 días.
+ * @returns {Promise<{desde: string, hasta: string, days: {date: string, total: string, transactions: number}[]}>}
+ */
+async function getSalesByDayFromApi(range) {
+    return apiRequest(`/reportes/ventas-por-dia/${buildQueryString(range)}`);
+}
+
+/**
  * Registra una entrada, salida o ajuste de inventario en el backend.
- * @param {{product_id: number, type: string, quantity: number, reason: string}} movement
+ * Se manda product_id (producto de venta) o supply_id (insumo), no los dos.
+ * @param {{product_id?: number, supply_id?: number, type: string, quantity: number, reason: string}} movement
  * @returns {Promise<Object>} Movimiento creado con stock_remaining.
  */
 async function createInventoryMovementInApi(movement) {

@@ -1340,6 +1340,23 @@ input[type="checkbox"] {
     white-space: nowrap;
 }
 
+/* Nivel del algoritmo de reabastecimiento y cuánto pedir, debajo del nombre. */
+.dashboard-stock-detail {
+    display: block;
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.dashboard-stock-detail.level-critico {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+.dashboard-stock-detail.level-bajo {
+    color: var(--warning);
+    font-weight: 700;
+}
+
 .dashboard-recent-row {
     grid-template-columns: 0.6fr 1.2fr 0.8fr auto;
 }

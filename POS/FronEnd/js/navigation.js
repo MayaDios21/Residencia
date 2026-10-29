@@ -74,7 +74,7 @@ function showTab(tabName) {
     } else if (tabName === 'categories') {
         loadCategoryList();
     } else if (tabName === 'warehouse') {
-        loadWarehouse();
+        openWarehouseTab();
     } else if (tabName === 'sales') {
         loadSalesHistoryTab();
     } else if (tabName === 'cashbox') {

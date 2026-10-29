@@ -1,98 +1,124 @@
 /*
  * PANEL DEL ADMINISTRADOR
- * Métricas del periodo, gráfica de ventas por día, stock bajo y ventas recientes.
+ * Métricas del periodo, gráfica de ventas por día, alertas de reabastecimiento
+ * y ventas recientes. Todo sale del servidor (/api/reportes/, /api/ventas/ y
+ * /api/inventario/alertas/), así que muestra lo de todas las cajas.
  */
 
-/** Devuelve las ventas locales incluidas en el periodo seleccionado. */
-function getAdminDashboardSales(period) {
-    const now = new Date();
-    const today = getLocalDateKey(now);
-    if (period === 'today') {
-        return salesHistory.filter(sale => getLocalDateKey(new Date(sale.date)) === today);
-    }
-    if (period === 'all') return salesHistory;
+// Con "Todo el historial" la gráfica muestra solo los últimos días, para que se lea.
+const DASHBOARD_ALL_CHART_DAYS = 14;
+// "Ventas recientes" busca en este número de días hacia atrás.
+const DASHBOARD_RECENT_DAYS = 30;
+const RESTOCK_LEVEL_LABELS = { critico: 'Crítico', bajo: 'Bajo', sin_registrar: 'Sin registrar', ok: 'Bien' };
 
-    const days = Number(period);
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - days + 1);
-    return salesHistory.filter(sale => new Date(sale.date) >= start && new Date(sale.date) <= now);
+// Igual que en Ventas: si cambian rápido el periodo, solo se dibuja la respuesta más reciente.
+let dashboardRequestId = 0;
+
+/**
+ * Fecha AAAA-MM-DD de hace cierto número de días.
+ * @param {number} daysAgo - 0 es hoy.
+ * @returns {string}
+ */
+function getDateKeyDaysAgo(daysAgo) {
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    return getLocalDateKey(date);
 }
 
-/** Calcula y dibuja las métricas con los datos guardados en este navegador. */
-function renderAdminDashboard() {
+/**
+ * Rangos de fechas del periodo elegido: uno para las métricas y otro para la
+ * gráfica (con "Todo el historial" las métricas no llevan rango).
+ * @param {string} period - today, 7, 30 o all.
+ * @returns {{metrics: Object, chart: Object}}
+ */
+function getDashboardRanges(period) {
+    const today = getLocalDateKey();
+    if (period === 'today') {
+        const range = { desde: today, hasta: today };
+        return { metrics: range, chart: range };
+    }
+    if (period === 'all') {
+        return { metrics: {}, chart: { desde: getDateKeyDaysAgo(DASHBOARD_ALL_CHART_DAYS - 1), hasta: today } };
+    }
+    const range = { desde: getDateKeyDaysAgo(Number(period) - 1), hasta: today };
+    return { metrics: range, chart: range };
+}
+
+/** Pide al servidor los datos del periodo seleccionado y dibuja el panel. */
+async function renderAdminDashboard() {
     if (adminSession?.role !== 'admin') return;
     const period = document.getElementById('dashboard-period')?.value || 'today';
-    const sales = getAdminDashboardSales(period);
-    const total = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
-    const transactions = sales.length;
-    const items = sales.reduce((sum, sale) => sum + (Number(sale.items) || 0), 0);
-    const average = transactions ? total / transactions : 0;
-    const currency = amount => `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const ranges = getDashboardRanges(period);
+    const requestId = ++dashboardRequestId;
 
-    document.getElementById('admin-metric-sales').textContent = currency(total);
-    document.getElementById('admin-metric-count').textContent = transactions.toLocaleString('es-MX');
-    document.getElementById('admin-metric-average').textContent = currency(average);
-    document.getElementById('admin-metric-items').textContent = items.toLocaleString('es-MX');
+    const [summaryResult, chartResult, alertsResult, recentResult] = await Promise.allSettled([
+        getReportSummaryFromApi(ranges.metrics),
+        getSalesByDayFromApi(ranges.chart),
+        getRestockAlertsFromApi(),
+        getSalesFromApi({ desde: getDateKeyDaysAgo(DASHBOARD_RECENT_DAYS - 1) })
+    ]);
+    if (requestId !== dashboardRequestId) return;
+
+    const failed = [summaryResult, chartResult, alertsResult, recentResult].find(result => result.status === 'rejected');
+    if (failed) {
+        console.error('Error al cargar el panel:', failed.reason);
+        showNotification(`No se pudo cargar todo el panel: ${failed.reason.message}`);
+    }
+
+    const currency = amount => `$${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const rangeText = period === 'today' ? 'Hoy' : period === 'all' ? 'Todo el historial' : `Últimos ${period} días`;
+
+    if (summaryResult.status === 'fulfilled') {
+        const summary = summaryResult.value;
+        document.getElementById('admin-metric-sales').textContent = currency(Number(summary.total_sales));
+        document.getElementById('admin-metric-count').textContent = summary.transactions.toLocaleString('es-MX');
+        document.getElementById('admin-metric-average').textContent = currency(Number(summary.average_sale));
+        document.getElementById('admin-metric-items').textContent = summary.items.toLocaleString('es-MX');
+    }
+    const salesCaption = document.getElementById('admin-metric-sales-caption');
+    if (salesCaption) salesCaption.textContent = rangeText;
 
     const chart = document.getElementById('admin-sales-chart');
     const chartCaption = document.getElementById('admin-chart-caption');
-    const salesCaption = document.getElementById('admin-metric-sales-caption');
-    let days;
-    if (period === 'today') {
-        days = [new Date()];
-    } else if (period === 'all') {
-        const dates = [...new Set(sales.map(sale => getLocalDateKey(new Date(sale.date))))].sort();
-        days = dates.slice(-14).map(dateKey => new Date(`${dateKey}T12:00:00`));
-    } else {
-        const periodDays = Number(period);
-        days = Array.from({ length: periodDays }, (_, index) => {
-            const date = new Date();
-            date.setDate(date.getDate() - periodDays + index + 1);
-            return date;
-        });
+    if (chartCaption) {
+        chartCaption.textContent = period === 'all' ? `Últimos ${DASHBOARD_ALL_CHART_DAYS} días` : rangeText;
     }
-    const totalsByDay = new Map();
-    sales.forEach(sale => {
-        const dateKey = getLocalDateKey(new Date(sale.date));
-        totalsByDay.set(dateKey, (totalsByDay.get(dateKey) || 0) + (Number(sale.total) || 0));
-    });
-    const chartData = days.map(date => ({
-        date,
-        total: totalsByDay.get(getLocalDateKey(date)) || 0
-    }));
-    const maxDailySales = Math.max(...chartData.map(day => day.total), 1);
-    if (chart) {
+    if (chart && chartResult.status === 'fulfilled') {
+        const chartData = chartResult.value.days.map(day => ({
+            date: new Date(`${day.date}T12:00:00`),
+            total: Number(day.total)
+        }));
+        const maxDailySales = Math.max(...chartData.map(day => day.total), 1);
         chart.innerHTML = chartData.length ? chartData.map(day => {
             const label = day.date.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' });
             const height = day.total ? Math.max((day.total / maxDailySales) * 100, 5) : 2;
             return `<div class="dashboard-chart-column" title="${label}: ${currency(day.total)}"><span>${currency(day.total)}</span><div class="dashboard-chart-track"><i style="height:${height}%"></i></div><small>${label}</small></div>`;
         }).join('') : '<p class="dashboard-empty">Todavía no hay ventas para mostrar.</p>';
     }
-    const rangeText = period === 'today' ? 'Hoy' : period === 'all' ? 'Todo el historial' : `Últimos ${period} días`;
-    if (chartCaption) chartCaption.textContent = rangeText;
-    if (salesCaption) salesCaption.textContent = rangeText;
 
-    // Alertas del almacén: consumibles de venta e insumos (vasos, platos…).
-    const stockAlerts = [...products.filter(isInventoryTracked), ...supplies].filter(product => {
-        const stock = getProductStock(product);
-        return stock !== null && stock <= getProductMinimumStock(product);
-    });
+    // Alertas del algoritmo de reabastecimiento: productos controlados e insumos.
     const stockCount = document.getElementById('admin-stock-count');
     const stockList = document.getElementById('admin-stock-alerts');
-    if (stockCount) stockCount.textContent = `${stockAlerts.length} ${stockAlerts.length === 1 ? 'producto' : 'productos'}`;
-    if (stockList) {
-        stockList.innerHTML = stockAlerts.length ? stockAlerts.slice(0, 6).map(product => `
-            <div class="dashboard-stock-item"><span>${escapeHtml(product.name)}</span><strong>${getProductStock(product)} / ${getProductMinimumStock(product)}</strong></div>
-        `).join('') : '<p class="dashboard-empty">No hay productos con stock bajo.</p>';
+    if (alertsResult.status === 'fulfilled') {
+        const alerts = alertsResult.value.items;
+        if (stockCount) stockCount.textContent = `${alerts.length} ${alerts.length === 1 ? 'artículo' : 'artículos'}`;
+        if (stockList) {
+            stockList.innerHTML = alerts.length ? alerts.slice(0, 6).map(alert => {
+                const suggestion = alert.suggested_quantity > 0 ? ` · pedir ${alert.suggested_quantity}` : '';
+                return `
+                <div class="dashboard-stock-item"><span>${escapeHtml(alert.name)}<small class="dashboard-stock-detail level-${alert.level}">${RESTOCK_LEVEL_LABELS[alert.level] || alert.level}${suggestion}</small></span><strong>${alert.stock ?? '—'} / ${alert.minimum_stock}</strong></div>
+            `;
+            }).join('') : '<p class="dashboard-empty">No hay artículos por reabastecer.</p>';
+        }
     }
 
-    const recent = [...salesHistory].sort((left, right) => new Date(right.date) - new Date(left.date)).slice(0, 5);
     const recentList = document.getElementById('admin-recent-sales');
-    if (recentList) {
+    if (recentList && recentResult.status === 'fulfilled') {
+        const recent = recentResult.value.slice(0, 5);
         recentList.innerHTML = recent.length ? recent.map(sale => {
-            const date = new Date(sale.date);
-            return `<div class="dashboard-recent-row"><span>#${escapeHtml(String(sale.id))}</span><time>${date.toLocaleDateString('es-MX')} ${date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</time><span>${Number(sale.items) || 0} artículos</span><strong>${currency(Number(sale.total) || 0)}</strong></div>`;
+            const date = new Date(sale.created_at);
+            const cancelled = sale.status === 'cancelada' ? ' (cancelada)' : '';
+            return `<div class="dashboard-recent-row"><span>#${sale.id}</span><time>${date.toLocaleDateString('es-MX')} ${date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}</time><span>${sale.items_count} artículos${cancelled}</span><strong>${currency(Number(sale.total))}</strong></div>`;
         }).join('') : '<p class="dashboard-empty">Todavía no hay ventas registradas.</p>';
     }
 }

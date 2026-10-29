@@ -3,8 +3,14 @@
  * Solo consumibles que se cuentan por pieza: productos de venta marcados con
  * "Controlar en almacén" (refrescos, aguas…) e insumos que no se venden
  * (vasos, platos, cucharas…). La comida no se contabiliza aquí.
- * Registra entradas, salidas y ajustes de existencias.
+ * Registra entradas, salidas y ajustes de existencias. Todo vive en el
+ * servidor (/api/inventario/), así que lo ven todos los dispositivos.
  */
+
+/** Pide los insumos al servidor (solo el administrador tiene acceso). */
+async function loadSupplies() {
+    supplies = await getSuppliesFromApi();
+}
 
 /**
  * Junta en una sola lista los artículos que se cuentan en el almacén.
@@ -57,14 +63,19 @@ function loadWarehouse() {
         : visibleItems.map(({ kind, item }) => {
             const stock = getProductStock(item);
             const minimum = getProductMinimumStock(item);
+            const isActive = item.is_active !== false;
             const status = stock === null ? 'Sin registrar' : stock <= minimum ? 'Stock bajo' : 'Disponible';
             const statusClass = stock === null ? 'unknown' : stock <= minimum ? 'low' : 'available';
-            const action = kind === 'supply'
-                ? `<button class="btn btn-ghost btn-compact" type="button" onclick="deleteSupply(${item.id})" aria-label="Eliminar ${escapeHtml(item.name)}">Eliminar</button>`
-                : '';
+            // Un insumo con historial no se borra: se desactiva y se puede volver a activar.
+            let action = '';
+            if (kind === 'supply') {
+                action = isActive
+                    ? `<button class="btn btn-ghost btn-compact" type="button" onclick="deleteSupply(${item.id})" aria-label="Eliminar ${escapeHtml(item.name)}">Eliminar</button>`
+                    : `<button class="btn btn-ghost btn-compact" type="button" onclick="setSupplyActive(${item.id}, true)" aria-label="Activar ${escapeHtml(item.name)}">Activar</button>`;
+            }
             return `
                 <tr>
-                    <td>${escapeHtml(item.name)}</td>
+                    <td>${escapeHtml(item.name)}${isActive ? '' : ' (desactivado)'}</td>
                     <td>${kind === 'supply' ? 'Insumo' : 'Venta'}</td>
                     <td class="num">${stock === null ? '—' : stock}</td>
                     <td class="num">${minimum}</td>
@@ -74,9 +85,31 @@ function loadWarehouse() {
             `;
         }).join('');
 
-    selector.innerHTML = allItems.length === 0
+    // Solo se registran movimientos de artículos activos.
+    const selectableItems = allItems.filter(({ item }) => item.is_active !== false);
+    selector.innerHTML = selectableItems.length === 0
         ? '<option value="">No hay artículos</option>'
-        : allItems.map(({ key, item }) => `<option value="${key}">${escapeHtml(item.name)}</option>`).join('');
+        : selectableItems.map(({ key, item }) => `<option value="${key}">${escapeHtml(item.name)}</option>`).join('');
+}
+
+/** Vuelve a pedir los insumos al servidor y redibuja el almacén. */
+async function refreshSupplies() {
+    await loadSupplies();
+    loadWarehouse();
+}
+
+/**
+ * Al abrir el almacén: dibuja lo que ya se tiene y lo actualiza con el
+ * servidor (existencias que movieron ventas u otro dispositivo).
+ */
+function openWarehouseTab() {
+    loadWarehouse();
+    Promise.all([refreshCatalog(), loadSupplies()])
+        .then(() => loadWarehouse())
+        .catch(error => {
+            console.error('Error al actualizar el almacén:', error);
+            showNotification(`No se pudo actualizar el almacén: ${error.message}`);
+        });
 }
 
 /**
@@ -84,7 +117,7 @@ function loadWarehouse() {
  * con una entrada de mercancía.
  * @param {Event} event - Envío del formulario "Agregar insumo".
  */
-function addSupply(event) {
+async function addSupply(event) {
     event.preventDefault();
     const name = document.getElementById('supply-name').value.trim();
     const minimum = Number(document.getElementById('supply-minimum').value);
@@ -99,15 +132,37 @@ function addSupply(event) {
         return;
     }
 
-    supplies.push({ id: nextSupplyId++, name, stock: null, minimum_stock: minimum });
-    saveSupplies();
-    document.getElementById('supply-form').reset();
-    loadWarehouse();
-    showNotification(`Insumo "${name}" agregado. Registra una entrada para darle existencias.`);
+    try {
+        await createSupplyInApi({ name, minimum_stock: minimum });
+        document.getElementById('supply-form').reset();
+        await refreshSupplies();
+        showNotification(`Insumo "${name}" agregado. Registra una entrada para darle existencias.`);
+    } catch (error) {
+        console.error('Error al agregar insumo:', error);
+        showNotification(`No se pudo agregar el insumo: ${error.message}`);
+    }
 }
 
 /**
- * Elimina un insumo del almacén después de confirmarlo en el modal.
+ * Activa o desactiva un insumo. Uno desactivado no se puede elegir para
+ * movimientos, pero conserva su historial.
+ * @param {number} supplyId - ID del insumo.
+ * @param {boolean} isActive - true para activarlo, false para desactivarlo.
+ */
+async function setSupplyActive(supplyId, isActive) {
+    try {
+        await updateSupplyInApi(supplyId, { is_active: isActive });
+        await refreshSupplies();
+        showNotification(isActive ? 'Insumo activado' : 'Insumo desactivado');
+    } catch (error) {
+        console.error('Error al cambiar el estado del insumo:', error);
+        showNotification(`No se pudo actualizar el insumo: ${error.message}`);
+    }
+}
+
+/**
+ * Elimina un insumo del almacén después de confirmarlo en el modal. Si tiene
+ * historial el servidor no lo deja borrar (409) y se ofrece desactivarlo.
  * @param {number} supplyId - ID del insumo a eliminar.
  */
 function deleteSupply(supplyId) {
@@ -117,10 +172,24 @@ function deleteSupply(supplyId) {
         'Eliminar insumo',
         `Se eliminará "${supply.name}" del almacén junto con sus existencias.`,
         'Eliminar',
-        () => {
-            supplies = supplies.filter(item => item.id !== supplyId);
-            saveSupplies();
-            loadWarehouse();
+        async () => {
+            try {
+                await deleteSupplyInApi(supplyId);
+            } catch (error) {
+                if (error.status === 409) {
+                    openActionModal(
+                        'Desactivar insumo',
+                        `${error.message}\n\nUn insumo desactivado ya no se puede elegir para movimientos y conserva su historial.`,
+                        'Desactivar insumo',
+                        () => setSupplyActive(supplyId, false)
+                    );
+                    return;
+                }
+                console.error('Error al eliminar insumo:', error);
+                showNotification(`No se pudo eliminar el insumo: ${error.message}`);
+                return;
+            }
+            await refreshSupplies();
             showNotification(`Insumo "${supply.name}" eliminado.`);
         }
     );
@@ -128,7 +197,8 @@ function deleteSupply(supplyId) {
 
 /**
  * Registra una entrada, salida o ajuste de existencias de un producto o insumo.
- * Una entrada suma, una salida resta y un ajuste fija el stock contado.
+ * Una entrada suma, una salida resta y un ajuste fija el stock contado. El
+ * servidor aplica el movimiento y devuelve el stock que quedó.
  * @param {Event} event - Envío del formulario "Actualizar existencias".
  */
 async function registerInventoryMovement(event) {
@@ -146,33 +216,20 @@ async function registerInventoryMovement(event) {
     }
 
     const { kind, item } = entry;
+    const movement = kind === 'product'
+        ? { product_id: item.id, type, quantity, reason }
+        : { supply_id: item.id, type, quantity, reason };
     try {
-        // Los productos de venta se registran en la API; los insumos siguen en el navegador.
-        if (kind === 'product') {
-            const movement = { product_id: item.id, type, quantity, reason };
-            const response = await createInventoryMovementInApi(movement);
-            if (Number.isFinite(response?.stock_remaining)) item.stock = response.stock_remaining;
-        } else {
-            const currentStock = getProductStock(item) || 0;
-            const newStock = type === 'entrada' ? currentStock + quantity
-                : type === 'ajuste' ? quantity
-                : currentStock - quantity;
-            if (newStock < 0) {
-                showNotification('El movimiento no puede dejar el stock en negativo.');
-                return;
-            }
-            item.stock = newStock;
-            item.minimum_stock = getProductMinimumStock(item);
-            saveSupplies();
-        }
+        const response = await createInventoryMovementInApi(movement);
+        if (Number.isFinite(response?.stock_remaining)) item.stock = response.stock_remaining;
 
         document.getElementById('inventory-movement-form').reset();
         loadWarehouse();
         showNotification('Movimiento de inventario registrado.');
     } catch (error) {
+        console.error('Error al registrar movimiento:', error);
         showNotification(error.status === 409
             ? 'El movimiento no puede dejar el stock en negativo.'
-            : 'No se pudo registrar el movimiento.');
-        console.error('Error al registrar movimiento:', error);
+            : `No se pudo registrar el movimiento: ${error.message}`);
     }
 }

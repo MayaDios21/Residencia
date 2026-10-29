@@ -63,8 +63,9 @@ function handleLoginSubmit(event) {
 }
 
 /**
- * Pide al servidor el catálogo, la configuración y el estado de la caja
- * (necesitan el token, por eso va después del login) y redibuja las vistas.
+ * Pide al servidor el catálogo, la configuración, el estado de la caja y, al
+ * administrador, cierres e insumos (necesitan el token, por eso va después
+ * del login) y redibuja las vistas.
  * Si algo no responde, avisa qué no se pudo cargar.
  */
 async function loadSessionData() {
@@ -75,6 +76,7 @@ async function loadSessionData() {
     ];
     if (adminSession.role === 'admin') {
         requests.push(['los cierres de caja', getCashBoxClosingsFromApi().then(closings => { cashBoxClosings = closings; })]);
+        requests.push(['los insumos', loadSupplies()]);
     }
     const results = await Promise.allSettled(requests.map(([, request]) => request));
     results.forEach((result, index) => {
@@ -190,6 +192,7 @@ async function logoutSession() {
     categories = [];
     cashBoxState = { status: 'sin_abrir', session: null, sales_today: null, pending_session: null };
     cashBoxClosings = [];
+    supplies = [];
     showLoginScreen();
     document.getElementById('entry-login-form').reset();
     document.getElementById('login-username').focus();
