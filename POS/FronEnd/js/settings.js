@@ -1,20 +1,60 @@
 /*
  * CONFIGURACIÓN
- * Tipo de cambio y porcentaje de IVA. Ambos viven en el servidor
- * (/api/configuracion/): los dos roles los leen y solo el administrador los cambia.
+ * Tipo de cambio, porcentaje de IVA y número de mesas. Viven en el servidor
+ * (/api/configuracion/): cajero y administrador los leen y solo el
+ * administrador los cambia.
  */
 
 /**
- * Toma el IVA y el tipo de cambio de una respuesta de la API y refresca las
- * vistas que los usan (configuración y totales del carrito).
- * @param {{tax_rate: string, exchange_rate: string}} settings
+ * Toma el IVA, el tipo de cambio y el número de mesas de una respuesta de la
+ * API y refresca las vistas que los usan (configuración y totales del carrito).
+ * @param {{tax_rate: string, exchange_rate: string, numero_mesas: number}} settings
  */
 function applySettings(settings) {
     TAX_RATE = Number(settings.tax_rate);
     exchangeRate = Number(settings.exchange_rate);
+    tableCount = Number(settings.numero_mesas) || tableCount;
     displayExchangeRate();
     displayTaxRate();
+    displayTableCount();
     updateCart();
+}
+
+/** Muestra el número de mesas actual en Configuración. */
+function displayTableCount() {
+    const display = document.getElementById('table-count-display');
+    const input = document.getElementById('table-count-input');
+    if (display) display.textContent = String(tableCount);
+    if (input) input.value = String(tableCount);
+}
+
+/**
+ * Guarda el número de mesas desde el formulario de Configuración. El servidor
+ * no deja quitar mesas que tienen una comanda abierta.
+ * @param {Event} event - Envío del formulario.
+ */
+function updateTableCount(event) {
+    event.preventDefault();
+    const newCount = Number(document.getElementById('table-count-input').value);
+    if (!Number.isInteger(newCount) || newCount < 1 || newCount > 100) {
+        showNotification('Escribe un número de mesas entre 1 y 100.');
+        return;
+    }
+    openActionModal(
+        'Guardar número de mesas',
+        `La cuadrícula de comandas mostrará ${newCount} ${newCount === 1 ? 'mesa' : 'mesas'}.`,
+        'Confirmar mesas',
+        async () => {
+            try {
+                applySettings(await updateSettingsInApi({ numero_mesas: newCount }));
+                showNotification(`Número de mesas actualizado a ${newCount}.`);
+            } catch (error) {
+                console.error('Error al guardar el número de mesas:', error);
+                showNotification(`No se pudo guardar el número de mesas: ${error.message}`);
+                displayTableCount();
+            }
+        }
+    );
 }
 
 /** Pide la configuración al servidor (se llama al iniciar sesión). */

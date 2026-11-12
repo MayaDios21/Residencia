@@ -1,4 +1,4 @@
-"""Funciones de apoyo para las pruebas: crear usuarios con rol de administrador o cajero."""
+"""Funciones de apoyo para las pruebas: crear usuarios con rol de administrador, cajero o mesero."""
 
 from django.contrib.auth.models import User
 
@@ -17,3 +17,8 @@ def create_admin(username='admin'):
 
 def create_cashier(username='cashier'):
     return create_user(username, UserProfile.Role.CASHIER)
+
+
+def create_waiter(username='waiter'):
+    """Crea un usuario con rol de mesero."""
+    return create_user(username, UserProfile.Role.WAITER)

@@ -1,8 +1,9 @@
 # Proyecto 2 — Comandas y rol mesero
 
 **Fecha:** 2026-10-28
+**Actualizado:** 2026-11-02, revisado contra el código tras la Fase 7
 **Estado:** diseño aprobado por csvela, pendiente de revisión del equipo
-**Requiere antes:** [Proyecto 1 — Conectar cajero y administrador al backend](2026-10-28-integracion-backend-design.md)
+**Requisito:** [Proyecto 1 — Conectar cajero y administrador al backend](2026-10-28-integracion-backend-design.md), ya terminado (Fase 7, ver `docs/Cambios.md`)
 
 ---
 
@@ -63,7 +64,8 @@ agregar y quitar. No se edita ni se borra.
 
 ## 3. Reglas del negocio
 
-1. Solo se pueden **abrir** comandas con la **caja del día abierta**.
+1. Solo se pueden **abrir** comandas con la **caja de hoy abierta**. La comanda
+   queda ligada a esa jornada (`cash_session`).
 2. **No se puede cerrar la caja con comandas abiertas** (`close_cash_session`
    responde 409 con la lista de mesas pendientes).
 3. **El precio se toma al cobrar**, con el catálogo vigente, igual que hoy
@@ -74,12 +76,21 @@ agregar y quitar. No se edita ni se borra.
 5. **Cobrar es atómico.** `charge_order(order_id, user)` con
    `@transaction.atomic`:
    - bloquea la comanda (`select_for_update`) y valida que esté abierta y no vacía;
-   - llama a `create_sale(items, user)` (el mismo de `POST /api/ventas/`);
+   - llama a `create_sale(items, user, session=order.cash_session)`;
    - marca la comanda como `cobrada`, guarda `sale` y `closed_at`.
-   Si `create_sale` falla (sin stock, caja cerrada), se revierte todo y la comanda
-   **sigue abierta**. Es imposible cobrar dos veces la misma comanda.
+   Si `create_sale` falla (sin stock, producto desactivado), se revierte todo y la
+   comanda **sigue abierta**. Es imposible cobrar dos veces la misma comanda.
+
+   **La venta cuenta en la jornada de la comanda, no en la del día del cobro.**
+   Hoy `create_sale()` solo acepta la caja con `business_date` de hoy. Sin este
+   cambio, una mesa abierta antes de medianoche quedaría atorada: no se podría
+   cobrar (la caja ya no es "de hoy"), ni cerrar esa caja (regla 2), ni abrir la de
+   hoy (`open_cash_session` exige cerrar la pendiente). Por eso `create_sale` recibe
+   un `session` opcional; sin él, `POST /api/ventas/` se comporta igual que hoy. La
+   regla 2 garantiza que la jornada de una comanda abierta siga abierta.
 6. **Cancelar:** cajero o admin, con motivo. El mesero solo puede cancelar una
-   comanda **vacía** (por ejemplo, abrió la mesa equivocada).
+   comanda **vacía** (por ejemplo, abrió la mesa equivocada). Es distinto de
+   cancelar una venta, que sigue siendo solo del admin: aquí todavía no hubo cobro.
 7. **Concurrencia:** agregar, quitar, cobrar y cancelar bloquean la fila de la
    comanda. Si dos meseros abren la misma mesa a la vez, uno entra y el otro
    recibe 409 (lo garantiza la restricción única).
@@ -131,6 +142,9 @@ Todo bajo `/api/comandas/`, en español como el resto.
 - `POST /usuarios/` y `PATCH /usuarios/{id}/` aceptan `role: "waiter"` (sale solo
   de `UserProfile.Role.choices`).
 - Login: sin cambios; el servidor ya devuelve `role` del perfil.
+- `DELETE /productos/{id}/`: las partidas de comanda usan `PROTECT`, así que
+  también bloquean el borrado. El mensaje actual dice "historial de inventario" y
+  hay que hacerlo general ("tiene historial; desactívalo").
 
 ## 6. Pantallas (frontend)
 
@@ -139,8 +153,11 @@ Todo bajo `/api/comandas/`, en español como el resto.
 - Al entrar va directo a **Mesas**; es su única pantalla. No ve Venta, Caja ni
   Ventas, y **no se le pide fondo inicial**.
 - **Cuadrícula de mesas:** libres en claro; ocupadas en color con número de
-  productos, mesero y hora. Se actualiza cada 10 s mientras está visible, más un
-  botón para actualizar.
+  productos, mesero y hora. Se actualiza cada 10 s, más un botón para actualizar.
+  Solo consulta con la cuadrícula en pantalla y la pestaña visible
+  (`document.visibilityState`): en Vercel cada consulta es una ejecución de la
+  función y una consulta a Supabase, así que un celular guardado no debe seguir
+  preguntando.
 - **Vista de comanda** (al tocar una mesa):
   - "Ya en la mesa": lo mandado, con botón − por producto (quitar o corregir).
   - Productos del menú con filtros por categoría, como en la pantalla Venta. Lo
@@ -155,7 +172,7 @@ Todo bajo `/api/comandas/`, en español como el resto.
   cuadrícula y vista de comanda** (un solo código).
 - Además ve el **total con IVA** y:
   - **"Cobrar"**: confirmación con el desglose, como la venta actual → `cobrar/`.
-  - **"Cancelar comanda"**: pide motivo → `cancelar/`.
+  - **"Cancelar comanda"**: pide motivo con `openInputModal()` → `cancelar/`.
 - Si intenta cerrar caja con mesas abiertas, se le dice cuáles faltan.
 
 ### Administrador
@@ -173,8 +190,8 @@ Todo bajo `/api/comandas/`, en español como el resto.
 |---|---|
 | `js/orders.js` (nuevo) | Cuadrícula, vista de comanda, "Por mandar", cobrar y cancelar |
 | `js/api.js` | Funciones de comandas (con JSDoc en español) |
-| `js/navigation.js` | `WAITER_TABS = ['tables']`; `showTab()` hoy obliga a **cualquier rol que no sea admin** a abrir caja (`requiresOpeningCash = !isAdmin && ...`), hay que excluir al mesero |
-| `js/session.js` | `enterApp()` manda al mesero a `tables`; navegación por rol |
+| `js/navigation.js` | `WAITER_TABS = ['tables']`. `showTab()` hoy obliga a **cualquier rol que no sea admin** a abrir caja (`requiresOpeningCash = !isAdmin && ...`): hay que excluir al mesero, y mandarlo a `tables` si intenta otra pantalla. También hay que dejar pasar al cajero a `tables` cuando hay una jornada pendiente de otro día (`cashBoxState.pending_session`): hoy lo manda a Caja y no podría cobrar la mesa que le impide cerrarla |
+| `js/session.js` | `enterApp()` manda al mesero a `tables` (hoy todo el que no es admin va a `pos`, y `canRestoreTab` le dejaría reabrir `pos` o `cashbox`). `updateRoleNavigation()` hoy muestra la barra del cajero a todo el que no es admin. `loadSessionData()` pide configuración y caja a todos los roles y luego dibuja almacén y caja: el mesero solo debe cargar el catálogo, o recibiría 403 al entrar |
 | `index.html` | Sección `#tables-tab`, pestaña "Mesas" del cajero, opción "Mesero" en usuarios, campo de mesas en configuración |
 | `css/styles.css` | Cuadrícula y barra "Mandar", primero para celular |
 
@@ -188,9 +205,12 @@ Todo bajo `/api/comandas/`, en español como el resto.
   cerrada, producto inactivo, cantidad inválida).
 - Agregar suma cantidades; quitar resta y borra en 0; cada cambio deja un
   `OrderEvent` con el usuario correcto.
-- **Cobro atómico:** sin stock o con caja cerrada, el cobro falla, **no se crea
-  venta y la comanda sigue abierta**. Cobrar dos veces → 409.
+- **Cobro atómico:** sin stock o con un producto desactivado, el cobro falla, **no
+  se crea venta y la comanda sigue abierta**. Cobrar dos veces → 409.
 - Cerrar caja con comandas abiertas → 409.
+- **Cambio de día:** una comanda abierta ayer se cobra hoy, la venta queda en la
+  jornada de ayer y después esa caja se puede cerrar y abrir la de hoy.
+- `POST /api/ventas/` sin `session` sigue exigiendo la caja de hoy.
 - `numero_mesas` no baja por debajo de una mesa ocupada.
 - **Permisos:** el mesero recibe 403 en caja, ventas, inventario, reportes,
   usuarios y configuración; no puede cobrar; solo cancela comandas vacías.
@@ -206,7 +226,20 @@ Todo bajo `/api/comandas/`, en español como el resto.
 5. La venta aparece en el historial; la mesa 3 queda libre.
 6. Cerrar caja con otra mesa abierta → aviso; cobrarla y cerrar.
 
-## 8. Fuera de alcance (posibles siguientes pasos)
+## 8. Cómo se publica
+
+Cada push a `main` se publica solo en Vercel, pero **las migraciones no corren
+solas** (`GUIA_PRUEBAS_LOCAL.txt`, sección 13). El código nuevo lee
+`SystemSettings.table_count`, y `SystemSettings.load()` se usa también al vender,
+así que subirlo sin la migración rompería las ventas en el sistema real.
+
+1. Probar todo en local.
+2. Correr `manage.py migrate` contra Supabase **antes** del push. Es seguro: solo
+   agrega una columna y tablas nuevas, y el código publicado las ignora.
+3. Hacer push y probar en `pos-el-compita.vercel.app`.
+4. Crear los usuarios meseros desde **Usuarios** en el sistema publicado.
+
+## 9. Fuera de alcance (posibles siguientes pasos)
 
 - Pantalla de cocina o impresión de comandas.
 - Mover una comanda de mesa o juntar mesas.

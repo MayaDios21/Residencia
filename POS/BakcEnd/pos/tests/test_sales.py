@@ -3,6 +3,7 @@ Pruebas del registro de ventas: totales calculados en el servidor, descuento
 de stock, caja abierta obligatoria y validaciones.
 """
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -194,3 +195,12 @@ class SaleApiTests(APITestCase):
         response = self.sell([{'product_id': self.taco.id, 'quantity': 1}])
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_api_sale_still_requires_today_session(self):
+        """La venta directa no usa la caja de ayer: eso solo aplica a comandas."""
+        CashSession.objects.update(business_date=timezone.localdate() - timedelta(days=1))
+
+        response = self.sell([{'product_id': self.consome.id, 'quantity': 1}])
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertFalse(Sale.objects.exists())

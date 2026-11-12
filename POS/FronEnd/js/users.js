@@ -6,7 +6,7 @@
 
 let managedUsers = [];
 
-const ROLE_LABELS = { admin: 'Administrador', cashier: 'Cajero' };
+const ROLE_LABELS = { admin: 'Administrador', cashier: 'Cajero', waiter: 'Mesero' };
 
 /**
  * Indica si el usuario de la lista es quien tiene la sesión abierta.
@@ -65,7 +65,9 @@ function renderUsers() {
         : visibleUsers.map(user => {
             const fullName = `${user.first_name} ${user.last_name}`.trim() || '—';
             const isSelf = isCurrentUser(user);
-            const nextRole = user.role === 'admin' ? 'cashier' : 'admin';
+            const roleOptions = Object.entries(ROLE_LABELS)
+                .map(([value, label]) => `<option value="${value}"${value === user.role ? ' selected' : ''}>${label}</option>`)
+                .join('');
             // Nadie puede quitarse el rol de administrador ni desactivarse a sí mismo.
             const selfLock = isSelf ? 'disabled title="No puedes cambiar tu propia cuenta"' : '';
             return `
@@ -77,9 +79,11 @@ function renderUsers() {
                     <td>${formatLastLogin(user.last_login)}</td>
                     <td>
                         <div class="table-actions">
-                            <button class="btn btn-secondary btn-compact" type="button" onclick="confirmUserRoleChange(${user.id})" ${selfLock}>
-                                Hacer ${ROLE_LABELS[nextRole].toLowerCase()}
-                            </button>
+                            <!-- El select regresa a su rol actual al instante: si se cancela el
+                                 modal queda bien, y si se confirma la tabla se vuelve a dibujar. -->
+                            <select class="role-select" aria-label="Rol de ${escapeHtml(user.username)}" onchange="confirmUserRoleChange(${user.id}, this.value); this.value = '${user.role}';" ${selfLock}>
+                                ${roleOptions}
+                            </select>
                             <button class="btn ${user.is_active ? 'btn-danger' : 'btn-secondary'} btn-compact" type="button" onclick="confirmUserActiveChange(${user.id})" ${selfLock}>
                                 ${user.is_active ? 'Desactivar' : 'Activar'}
                             </button>
@@ -152,13 +156,13 @@ async function createUser(event) {
 }
 
 /**
- * Pide confirmación para cambiar a un usuario entre cajero y administrador.
+ * Pide confirmación para cambiar el rol de un usuario (cajero, administrador o mesero).
  * @param {number} userId
+ * @param {string} nextRole - Rol elegido en el selector de la tabla.
  */
-function confirmUserRoleChange(userId) {
+function confirmUserRoleChange(userId, nextRole) {
     const user = managedUsers.find(item => item.id === userId);
-    if (!user) return;
-    const nextRole = user.role === 'admin' ? 'cashier' : 'admin';
+    if (!user || !ROLE_LABELS[nextRole] || nextRole === user.role) return;
     openActionModal(
         'Cambiar rol',
         `${user.username} pasará de ${ROLE_LABELS[user.role]} a ${ROLE_LABELS[nextRole]}. Tendrá que iniciar sesión de nuevo.`,

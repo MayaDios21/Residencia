@@ -29,6 +29,9 @@ let activeCategory = "Todas";
 // los valores mientras llega la respuesta.
 let TAX_RATE = 0.08; // 8% de IVA (valor por defecto)
 
+// Mesas que muestra la cuadrícula de comandas (lo cambia el administrador).
+let tableCount = 10;
+
 // Variable para almacenar el tipo de cambio
 let exchangeRate = 19.50; // Tipo de cambio por defecto
 

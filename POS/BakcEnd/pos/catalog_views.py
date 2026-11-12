@@ -39,12 +39,9 @@ class ProductViewSet(CatalogViewSet):
         try:
             product.delete()
         except ProtectedError:
-            # Sus movimientos de inventario se conservan como historial.
+            # Sus movimientos de inventario y comandas se conservan como historial.
             return Response(
-                {'detail': (
-                    'Este producto tiene historial de inventario; '
-                    'desactívalo en lugar de borrarlo.'
-                )},
+                {'detail': 'Este producto tiene historial; desactívalo en lugar de borrarlo.'},
                 status=status.HTTP_409_CONFLICT,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)

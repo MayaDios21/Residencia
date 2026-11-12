@@ -1,7 +1,7 @@
 """
 Serializers de la API: convierten los modelos a JSON y validan los datos que
-llegan (inicio de sesión, usuarios, catálogo, inventario, configuración, caja
-y ventas).
+llegan (inicio de sesión, usuarios, catálogo, inventario, configuración, caja,
+ventas y comandas).
 """
 
 from decimal import Decimal
@@ -15,6 +15,7 @@ from .models import (
     CashSession,
     Category,
     InventoryMovement,
+    Order,
     Product,
     Sale,
     SaleItem,
@@ -22,6 +23,8 @@ from .models import (
     SystemSettings,
     UserProfile,
 )
+from .order_services import summarize_order
+from .services import to_money
 
 
 class LoginSerializer(serializers.Serializer):
@@ -197,12 +200,34 @@ class SystemSettingsSerializer(serializers.ModelSerializer):
         decimal_places=4,
         min_value=Decimal('0.0001'),
     )
+    numero_mesas = serializers.IntegerField(
+        source='table_count',
+        min_value=1,
+        max_value=100,
+        required=False,
+        help_text='Mesas que muestra la cuadrícula del mesero.',
+    )
     updated_by = serializers.CharField(source='updated_by.username', read_only=True, default=None)
 
     class Meta:
         model = SystemSettings
-        fields = ('tax_rate', 'exchange_rate', 'updated_by', 'updated_at')
+        fields = ('tax_rate', 'exchange_rate', 'numero_mesas', 'updated_by', 'updated_at')
         read_only_fields = ('updated_at',)
+
+    def validate_numero_mesas(self, value):
+        """Rechaza quitar mesas que hoy tienen una comanda abierta."""
+        occupied = list(
+            Order.objects
+            .filter(status=Order.Status.OPEN, table_number__gt=value)
+            .order_by('table_number')
+            .values_list('table_number', flat=True)
+        )
+        if occupied:
+            tables = ', '.join(str(table) for table in occupied)
+            raise serializers.ValidationError(
+                f'No puedes quitar mesas con comandas abiertas: {tables}.'
+            )
+        return value
 
 
 class CashSessionSerializer(serializers.ModelSerializer):
@@ -396,3 +421,105 @@ class PasswordResetSerializer(serializers.Serializer):
         except DjangoValidationError as error:
             raise serializers.ValidationError(list(error.messages)) from error
         return value
+
+
+# ---------------------------------------------------------------------------
+# Comandas
+# ---------------------------------------------------------------------------
+
+class OrderCreateSerializer(serializers.Serializer):
+    """Abrir la comanda de una mesa con sus primeros productos."""
+    mesa = serializers.IntegerField(min_value=1)
+    items = SaleItemInputSerializer(many=True, allow_empty=False)
+
+
+class OrderItemsSerializer(serializers.Serializer):
+    """Productos que se agregan a una comanda abierta."""
+    items = SaleItemInputSerializer(many=True, allow_empty=False)
+
+
+class OrderRemoveItemSerializer(serializers.Serializer):
+    """Producto y cantidad que se quitan de una comanda abierta."""
+    product_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class OrderCancelSerializer(serializers.Serializer):
+    """Motivo de la cancelación; solo es obligatorio si la comanda tiene productos."""
+    motivo = serializers.CharField(max_length=255, required=False, allow_blank=True, default='')
+
+
+class OrderEventSerializer(serializers.Serializer):
+    """Un renglón de la bitácora: quién agregó o quitó qué y cuándo."""
+    action = serializers.CharField()
+    product_name = serializers.CharField()
+    quantity = serializers.IntegerField()
+    user = serializers.CharField(source='user.username')
+    created_at = serializers.DateTimeField()
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    """Comanda con sus productos al precio vigente, totales del servidor y bitácora."""
+    mesa = serializers.IntegerField(source='table_number', read_only=True)
+    business_date = serializers.DateField(source='cash_session.business_date', read_only=True)
+    opened_by = serializers.CharField(source='opened_by.username', read_only=True)
+    cancelled_by = serializers.CharField(source='cancelled_by.username', read_only=True, default=None)
+    items = serializers.SerializerMethodField()
+    subtotal = serializers.SerializerMethodField()
+    tax = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+    events = OrderEventSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = (
+            'id',
+            'mesa',
+            'status',
+            'business_date',
+            'opened_by',
+            'opened_at',
+            'closed_at',
+            'cancelled_by',
+            'cancel_reason',
+            'items',
+            'subtotal',
+            'tax',
+            'total',
+            'events',
+        )
+        read_only_fields = fields
+
+    def _summary(self, order):
+        """Calcula una sola vez los totales de la comanda por respuesta."""
+        cache = getattr(self, '_summaries', None)
+        if cache is None:
+            cache = self._summaries = {}
+        if order.pk not in cache:
+            cache[order.pk] = summarize_order(order)
+        return cache[order.pk]
+
+    def get_items(self, order):
+        """Partidas con el precio vigente del producto (aún no es venta)."""
+        return [
+            {
+                'product_id': item.product_id,
+                'product_name': item.product.name,
+                'unit_price': str(item.product.price),
+                'quantity': item.quantity,
+                'line_total': str(to_money(item.product.price * item.quantity)),
+            }
+            for item in order.items.all()
+        ]
+
+    def get_subtotal(self, order):
+        """Subtotal con precios vigentes, como texto para no perder decimales."""
+        return str(self._summary(order)['subtotal'])
+
+    def get_tax(self, order):
+        """IVA con la tasa vigente."""
+        return str(self._summary(order)['tax'])
+
+    def get_total(self, order):
+        """Lo que se cobraría hoy."""
+        return str(self._summary(order)['total'])

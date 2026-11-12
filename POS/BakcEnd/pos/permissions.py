@@ -3,7 +3,9 @@ Permisos por rol para la API.
 
 - IsAdminRole: solo administrador.
 - IsCashierRole: solo cajero.
-- IsCatalogUser / IsPosUser: cualquier usuario con un rol válido.
+- IsCatalogUser: cualquier usuario con un rol válido (leer el menú).
+- IsPosUser: cajero y administrador (caja, ventas, configuración).
+- IsOrderUser: mesero, cajero y administrador (comandas).
 """
 
 from rest_framework.permissions import BasePermission
@@ -45,5 +47,26 @@ class IsCatalogUser(BasePermission):
             return False
 
 
-# Ventas y caja las pueden operar ambos roles, igual que la lectura del catálogo.
-IsPosUser = IsCatalogUser
+class HasAnyRole(BasePermission):
+    """Permite el acceso a usuarios autenticados cuyo rol esté en allowed_roles."""
+    allowed_roles = ()
+
+    def has_permission(self, request, view):
+        """True si el usuario inició sesión y su perfil tiene uno de los roles permitidos."""
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        try:
+            return request.user.profile.role in self.allowed_roles
+        except UserProfile.DoesNotExist:
+            return False
+
+
+class IsPosUser(HasAnyRole):
+    """Caja, ventas y configuración: cajero y administrador. El mesero no entra."""
+    allowed_roles = (UserProfile.Role.CASHIER, UserProfile.Role.ADMIN)
+
+
+class IsOrderUser(HasAnyRole):
+    """Comandas: mesero, cajero y administrador."""
+    allowed_roles = (UserProfile.Role.WAITER, UserProfile.Role.CASHIER, UserProfile.Role.ADMIN)

@@ -99,6 +99,9 @@
             <button class="tab active" type="button" data-tab="pos" onclick="showTab('pos')">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.6 12.4a1.5 1.5 0 0 0 1.5 1.1h8.9a1.5 1.5 0 0 0 1.5-1.2L21 8H6"/></svg>Venta
             </button>
+            <button class="tab" type="button" data-tab="tables" onclick="showTab('tables')">
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18"/><path d="M5 9v10M19 9v10"/><path d="M8 9V6h8v3"/></svg>Mesas
+            </button>
             <button class="tab" type="button" data-tab="cashbox" onclick="showTab('cashbox')">
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>Cierre de caja
             </button>
@@ -241,6 +244,12 @@
                 </div>
             </section>
 
+            <!-- Mesas (mesero y cajero): cuadrícula de mesas y comanda de la mesa
+                 elegida. La dibuja js/orders.js con datos de /api/comandas/. -->
+            <section id="tables-tab" class="tab-content" aria-label="Mesas">
+                <div id="tables-view"></div>
+            </section>
+
             <!-- Configuración: tipo de cambio, IVA y mantenimiento de datos. -->
             <section id="settings-tab" class="tab-content" aria-labelledby="settings-title">
                 <div class="page-heading">
@@ -283,6 +292,22 @@
                             <button type="submit" class="btn">Guardar IVA</button>
                         </form>
                         <p class="panel-footnote">Actual: <strong id="current-tax-rate">---</strong>%</p>
+                    </div>
+
+                    <!-- Número de mesas de la cuadrícula de comandas. -->
+                    <div class="panel">
+                        <h3>Mesas</h3>
+                        <form id="table-count-form" onsubmit="updateTableCount(event)">
+                            <div class="form-group">
+                                <label for="table-count-input">Número de mesas</label>
+                                <div class="input-with-badge">
+                                    <input type="number" id="table-count-input" step="1" min="1" max="100" required placeholder="10" inputmode="numeric">
+                                    <span class="value-badge" id="table-count-display">---</span>
+                                </div>
+                            </div>
+                            <p class="field-help">Los meseros ven las mesas de la 1 a este número. No se pueden quitar mesas con una comanda abierta.</p>
+                            <button type="submit" class="btn">Guardar mesas</button>
+                        </form>
                     </div>
                 </div>
             </section>
@@ -350,6 +375,7 @@
                                     <select id="user-role" required>
                                         <option value="cashier">Cajero</option>
                                         <option value="admin">Administrador</option>
+                                        <option value="waiter">Mesero</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -829,6 +855,7 @@
     <script src="js/categories.js"></script>
     <script src="js/products.js"></script>
     <script src="js/cart.js"></script>
+    <script src="js/orders.js"></script>
     <script src="js/sales.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/cashbox.js"></script>

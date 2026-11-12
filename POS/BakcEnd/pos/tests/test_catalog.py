@@ -5,10 +5,11 @@ administrador, validaciones y borrado de categorías y productos.
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from ..models import Category, Product, UserProfile
+from ..models import CashSession, Category, Order, OrderItem, Product, UserProfile
 from ..services import apply_stock_movement
 
 
@@ -165,4 +166,23 @@ class CatalogApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
         self.assertIn('desactívalo', response.data['detail'])
+        self.assertTrue(Product.objects.filter(pk=product.pk).exists())
+
+    def test_product_in_order_cannot_be_deleted(self):
+        """Un producto pedido en una comanda se desactiva, no se borra."""
+        product = Product.objects.create(name='Consomé', price='30.00')
+        session = CashSession.objects.create(
+            business_date=timezone.localdate(),
+            opening_amount='500.00',
+            opened_by=self.admin,
+        )
+        order = Order.objects.create(table_number=1, opened_by=self.admin, cash_session=session)
+        OrderItem.objects.create(order=order, product=product, quantity=1)
+        self.authenticate_as(self.admin)
+
+        response = self.client.delete(f'/api/productos/{product.id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn('desactívalo', response.data['detail'])
+        self.assertNotIn('inventario', response.data['detail'])
         self.assertTrue(Product.objects.filter(pk=product.pk).exists())

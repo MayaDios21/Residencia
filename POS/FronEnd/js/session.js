@@ -5,18 +5,20 @@
  */
 
 /**
- * Muestra la navegación del perfil (pestañas del cajero o menú lateral del
- * administrador) y el nombre del usuario.
+ * Muestra la navegación del perfil (pestañas del cajero, menú lateral del
+ * administrador o ninguna para el mesero, que solo tiene Mesas) y el nombre
+ * del usuario.
  */
 function updateRoleNavigation() {
-    const isAdmin = adminSession?.role === 'admin';
-    document.getElementById('cashier-nav').hidden = isAdmin;
+    const role = adminSession?.role;
+    const isAdmin = role === 'admin';
+    document.getElementById('cashier-nav').hidden = isAdmin || role === 'waiter';
     document.getElementById('admin-nav').hidden = !isAdmin;
     document.getElementById('admin-nav-toggle').hidden = !isAdmin;
     // La clase activa el diseño de dos columnas (menú + pantalla) en el CSS.
     document.body.classList.toggle('role-admin', isAdmin);
     closeAdminNav();
-    document.getElementById('session-role').textContent = isAdmin ? 'Administrador' : 'Cajero';
+    document.getElementById('session-role').textContent = ROLE_LABELS[role] || 'Cajero';
     document.getElementById('session-user').textContent = adminSession.displayName;
     // Las pestañas de categoría de Venta cambian según el rol ("+ Nueva categoría").
     loadCategoryTabs();
@@ -65,10 +67,20 @@ function handleLoginSubmit(event) {
 /**
  * Pide al servidor el catálogo, la configuración, el estado de la caja y, al
  * administrador, cierres e insumos (necesitan el token, por eso va después
- * del login) y redibuja las vistas.
+ * del login) y redibuja las vistas. El mesero solo necesita el menú: pedirle
+ * caja o configuración respondería 403.
  * Si algo no responde, avisa qué no se pudo cargar.
  */
 async function loadSessionData() {
+    if (adminSession.role === 'waiter') {
+        try {
+            await loadCatalog();
+        } catch (error) {
+            console.error('No se pudo cargar el catálogo:', error);
+            showNotification(`No se pudo cargar el catálogo: ${error.message}`);
+        }
+        return;
+    }
     const requests = [
         ['el catálogo', loadCatalog()],
         ['la configuración', loadSettings()],
@@ -103,11 +115,15 @@ async function enterApp(savedTab = null) {
     await loadSessionData();
 
     const isAdmin = adminSession.role === 'admin';
+    const isWaiter = adminSession.role === 'waiter';
     const canRestoreTab = savedTab
         && document.getElementById(`${savedTab}-tab`)
         && (isAdmin ? !CASHIER_TABS.includes(savedTab) : !ADMIN_TABS.includes(savedTab));
 
-    if (isAdmin) {
+    if (isWaiter) {
+        // El mesero no abre caja: entra directo a su única pantalla, Mesas.
+        showTab('tables');
+    } else if (isAdmin) {
         renderAdminDashboard();
         showTab(canRestoreTab ? savedTab : 'admin-dashboard');
     } else {
@@ -118,6 +134,7 @@ async function enterApp(savedTab = null) {
 
 /** Muestra la pantalla de inicio de sesión (sin sesión guardada o sesión expirada). */
 function showLoginScreen() {
+    stopTablesPolling();
     delete document.body.dataset.tab;
     document.getElementById('session-loading').hidden = true;
     document.getElementById('app-container').hidden = true;

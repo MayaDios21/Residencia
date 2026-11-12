@@ -1,7 +1,7 @@
 """
 Panel de Django (/admin/): registro de los modelos para consultarlos.
 
-Ventas, jornadas de caja y movimientos de inventario son de solo lectura, y el
+Ventas, comandas, jornadas de caja y movimientos de inventario son de solo lectura, y el
 stock de los productos no se edita aquí: todo eso se registra por la API para
 que los totales y las existencias siempre se calculen bien.
 """
@@ -12,6 +12,9 @@ from .models import (
     CashSession,
     Category,
     InventoryMovement,
+    Order,
+    OrderEvent,
+    OrderItem,
     Product,
     Sale,
     SaleItem,
@@ -74,7 +77,7 @@ class InventoryMovementAdmin(admin.ModelAdmin):
 
 @admin.register(SystemSettings)
 class SystemSettingsAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'tax_rate', 'exchange_rate', 'updated_by', 'updated_at')
+    list_display = ('__str__', 'tax_rate', 'exchange_rate', 'table_count', 'updated_by', 'updated_at')
     readonly_fields = ('updated_by', 'updated_at')
 
     def has_add_permission(self, request):
@@ -128,6 +131,46 @@ class SaleAdmin(admin.ModelAdmin):
 
     # Las ventas se registran y se cancelan por la API (calcula totales y
     # mueve el stock); en el panel solo se consultan.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class ReadOnlyInline(admin.TabularInline):
+    """Renglones relacionados que solo se consultan: se registran por la API."""
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+class OrderItemInline(ReadOnlyInline):
+    model = OrderItem
+    fields = ('product', 'quantity')
+
+
+class OrderEventInline(ReadOnlyInline):
+    model = OrderEvent
+    fields = ('created_at', 'user', 'action', 'product_name', 'quantity')
+
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    """Comandas de solo lectura, con sus productos y su bitácora."""
+    list_display = ('id', 'table_number', 'status', 'opened_by', 'opened_at', 'sale')
+    list_filter = ('status',)
+    inlines = (OrderItemInline, OrderEventInline)
+
+    # Abrir, agregar, cobrar y cancelar pasan por la API para respetar las reglas.
     def has_add_permission(self, request):
         return False
 

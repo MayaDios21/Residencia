@@ -258,7 +258,8 @@ textarea {
 .form-group select,
 .inline-field input,
 .inline-field select,
-.search-input {
+.search-input,
+.role-select {
     width: 100%;
     min-height: var(--tap);
     padding: 9px 12px;
@@ -273,7 +274,8 @@ textarea {
 .form-group select:focus-visible,
 .inline-field input:focus-visible,
 .inline-field select:focus-visible,
-.search-input:focus-visible {
+.search-input:focus-visible,
+.role-select:focus-visible {
     outline: none;
     border-color: var(--brand);
     box-shadow: var(--focus-ring);
@@ -1780,6 +1782,17 @@ input[type="checkbox"] {
     gap: 6px;
 }
 
+/* Selector de rol en la tabla de usuarios: mismo estilo que los campos. */
+.table-actions .role-select {
+    width: auto;
+    min-width: 150px;
+}
+
+.role-select:disabled {
+    background: var(--surface-2);
+    color: var(--muted);
+}
+
 .row-inactive td {
     color: var(--muted);
 }
@@ -1955,6 +1968,204 @@ input[type="checkbox"] {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     align-items: start;
     gap: 16px;
+}
+
+/* ---------- Mesas y comandas (mesero y cajero) ---------- */
+/* Cuadrícula de mesas: botones grandes para tocar en el celular; las ocupadas
+   en color de la marca con su resumen. */
+.tables-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.table-card {
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    min-height: 104px;
+    padding: 14px;
+    border: 2px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 100ms var(--ease-out), border-color 150ms;
+}
+
+.table-card:active {
+    transform: scale(0.97);
+}
+
+.table-card.is-occupied {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+}
+
+.table-card-number {
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.table-card.is-occupied .table-card-number {
+    color: var(--brand);
+}
+
+.table-card-detail {
+    color: var(--ink-2);
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.table-card-meta {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Separación entre el encabezado de Mesas o de la comanda y su contenido. */
+.tables-grid,
+.order-layout {
+    margin-top: 16px;
+}
+
+/* Comanda: en celular, una columna (panel arriba, menú abajo); en pantallas
+   anchas, menú a la izquierda y panel fijo a la derecha, como Venta. */
+.order-heading .btn {
+    margin-bottom: 8px;
+}
+
+.order-layout {
+    display: grid;
+    gap: 16px;
+}
+
+.order-panel {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    min-width: 0;
+}
+
+.order-section h3 {
+    font-size: 1.05rem;
+}
+
+.order-section.has-draft {
+    border-color: var(--clay);
+}
+
+.order-lines {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.order-line {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 10px;
+    min-height: var(--tap);
+}
+
+.order-line-qty {
+    color: var(--brand);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.order-line-name {
+    overflow-wrap: anywhere;
+}
+
+.order-line-price {
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.order-line .qty-btn {
+    width: var(--tap);
+    height: var(--tap);
+    font-size: 1.3rem;
+}
+
+.order-empty {
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.order-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.order-log {
+    margin-top: 14px;
+    color: var(--ink-2);
+    font-size: 0.88rem;
+}
+
+.order-log summary {
+    min-height: var(--tap);
+    padding: 10px 0;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.order-log ul {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding-left: 18px;
+}
+
+.order-menu {
+    min-width: 0;
+}
+
+/* Barra "Mandar" fija abajo: siempre al alcance del pulgar, respetando la
+   zona segura del iPhone. */
+.order-send-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 30;
+    margin-top: 16px;
+    padding: 8px 0 env(safe-area-inset-bottom);
+    background: var(--page);
+}
+
+.order-send-bar .checkout-btn {
+    margin-top: 0;
+}
+
+.order-send-bar .checkout-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (min-width: 900px) {
+    .order-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+        align-items: start;
+    }
+
+    .order-panel {
+        position: sticky;
+        top: 0;
+        order: 2;
+    }
 }
 
 /* ============================================
@@ -2167,6 +2378,7 @@ input[type="checkbox"] {
     .admin-nav-toggle:hover { background: rgba(255, 248, 237, 0.24); }
     .category-tab:hover:not(.active) { border-color: var(--brand); color: var(--brand); }
     .product-card:hover { border-color: var(--clay); box-shadow: var(--shadow); }
+    .table-card:hover { border-color: var(--clay); }
     .qty-btn:hover { background: var(--brand-strong); }
     .remove-btn:hover { background: var(--surface-2); }
     .checkout-btn:hover { filter: brightness(1.08); }

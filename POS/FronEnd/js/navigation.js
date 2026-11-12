@@ -1,12 +1,15 @@
 /*
  * NAVEGACIÓN
  * Decide qué pantalla se muestra, limita las secciones por perfil y exige al
- * cajero abrir la jornada antes de vender. También muestra la fecha del día.
+ * cajero abrir la jornada antes de vender. El mesero solo tiene Mesas.
+ * También muestra la fecha del día.
  */
 
 const ADMIN_TABS = ['admin-dashboard', 'admin', 'warehouse', 'categories', 'settings', 'users'];
-// El administrador no vende: solo revisa ventas y cierres desde sus pestañas.
-const CASHIER_TABS = ['pos'];
+// El administrador no vende ni cobra mesas: solo revisa ventas y cierres.
+const CASHIER_TABS = ['pos', 'tables'];
+// El mesero solo levanta comandas.
+const WAITER_TABS = ['tables'];
 
 /** Muestra la fecha de hoy en el encabezado, en formato largo en español. */
 function updateBusinessDate() {
@@ -25,6 +28,11 @@ function updateBusinessDate() {
  * @param {string} tabName - Nombre de la pestaña a mostrar
  */
 function showTab(tabName) {
+    const isWaiter = adminSession?.role === 'waiter';
+    // Cualquier otra pantalla que pida el mesero lo regresa a Mesas.
+    if (isWaiter && !WAITER_TABS.includes(tabName)) {
+        tabName = 'tables';
+    }
     if (ADMIN_TABS.includes(tabName) && adminSession?.role !== 'admin') {
         showNotification('Esta sección requiere acceso de administrador.');
         return;
@@ -34,8 +42,11 @@ function showTab(tabName) {
         tabName = 'admin-dashboard';
     }
 
-    // Solo el cajero inicia jornada; el administrador nunca registra fondo inicial.
-    const requiresOpeningCash = !isAdmin
+    // Solo el cajero inicia jornada; el administrador y el mesero nunca registran
+    // fondo inicial. Con una jornada de otro día pendiente, el cajero sí entra a
+    // Mesas: necesita cobrar las mesas que le impiden cerrarla.
+    const canChargePendingTables = tabName === 'tables' && Boolean(cashBoxState.pending_session);
+    const requiresOpeningCash = !isAdmin && !isWaiter && !canChargePendingTables
         && tabName !== 'cashbox' && tabName !== 'admin-dashboard';
     if (requiresOpeningCash && shouldOpenCashBoxForToday()) {
         showNotification('Registra primero el fondo inicial para continuar.');
@@ -67,8 +78,13 @@ function showTab(tabName) {
     document.body.dataset.tab = tabName;
     localStorage.setItem(CURRENT_TAB_STORAGE_KEY, tabName);
 
+    // Las mesas se consultan solas solo mientras la cuadrícula está en pantalla.
+    if (tabName !== 'tables') stopTablesPolling();
+
     // Cargar datos específicos de la pestaña
-    if (tabName === 'admin') {
+    if (tabName === 'tables') {
+        loadTablesTab();
+    } else if (tabName === 'admin') {
         loadProductList();
         loadCategorySelector();
     } else if (tabName === 'categories') {
@@ -82,6 +98,7 @@ function showTab(tabName) {
     } else if (tabName === 'settings') {
         displayExchangeRate();
         displayTaxRate();
+        displayTableCount();
     } else if (tabName === 'admin-dashboard') {
         renderAdminDashboard();
     } else if (tabName === 'users') {

@@ -1,14 +1,16 @@
 """
 Modelos (tablas) de la base de datos del punto de venta.
 
-- UserProfile: rol de cada usuario (cajero o administrador).
+- UserProfile: rol de cada usuario (cajero, administrador o mesero).
 - Category y Product: catálogo; solo los productos con track_inventory llevan stock.
 - Supply: insumos que no se venden (vasos, platos…), con su propio stock.
 - InventoryMovement: historial de entradas, salidas, ajustes, ventas y cancelaciones
   de un producto o de un insumo.
-- SystemSettings: IVA y tipo de cambio (una sola fila).
+- SystemSettings: IVA, tipo de cambio y número de mesas (una sola fila).
 - CashSession: jornada de caja, con su apertura y su cierre (una por día).
 - Sale y SaleItem: ventas y sus productos, con copias de precios e IVA.
+- Order, OrderItem y OrderEvent: comandas por mesa que el mesero levanta y el
+  cajero cobra, sus productos y la bitácora de quién agregó o quitó cada uno.
 """
 
 from decimal import Decimal
@@ -22,6 +24,8 @@ class UserProfile(models.Model):
     class Role(models.TextChoices):
         CASHIER = 'cashier', 'Cajero'
         ADMIN = 'admin', 'Administrador'
+        # El mesero solo toma comandas; no maneja caja ni ventas.
+        WAITER = 'waiter', 'Mesero'
 
     user = models.OneToOneField(
         User,
@@ -193,6 +197,14 @@ class SystemSettings(models.Model):
         default=Decimal('19.50'),
         validators=[MinValueValidator(Decimal('0.0001'))],
     )
+    # Mesas que muestra la cuadrícula del mesero (de la 1 a table_count).
+    # db_default: la base también lo tiene, así el código anterior a las
+    # comandas puede crear la fila aunque la columna ya exista.
+    table_count = models.PositiveSmallIntegerField(
+        default=10,
+        db_default=10,
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+    )
     updated_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -207,7 +219,7 @@ class SystemSettings(models.Model):
         verbose_name_plural = 'configuración'
 
     def __str__(self):
-        return f'IVA {self.tax_rate * 100:.2f}% · USD ${self.exchange_rate}'
+        return f'IVA {self.tax_rate * 100:.2f}% · USD ${self.exchange_rate} · {self.table_count} mesas'
 
     def save(self, *args, **kwargs):
         self.pk = 1
@@ -325,3 +337,104 @@ class SaleItem(models.Model):
 
     def __str__(self):
         return f'{self.quantity} × {self.product_name}'
+
+
+class Order(models.Model):
+    """Comanda de una mesa: se abre, se le agregan o quitan productos y se cobra.
+
+    Mientras está abierta no es venta: precios, IVA y stock se toman al cobrarla.
+    """
+
+    class Status(models.TextChoices):
+        OPEN = 'abierta', 'Abierta'
+        CHARGED = 'cobrada', 'Cobrada'
+        CANCELLED = 'cancelada', 'Cancelada'
+
+    table_number = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
+    opened_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='+')
+    opened_at = models.DateTimeField(auto_now_add=True)
+    # Jornada en que se abrió; al cobrarla, la venta cuenta en esta misma jornada.
+    cash_session = models.ForeignKey(CashSession, on_delete=models.PROTECT, related_name='orders')
+    sale = models.OneToOneField(
+        Sale,
+        on_delete=models.PROTECT,
+        related_name='order',
+        null=True,
+        blank=True,
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='+',
+        null=True,
+        blank=True,
+    )
+    cancel_reason = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ('-opened_at', '-id')
+        constraints = [
+            # Una mesa solo puede tener una comanda abierta a la vez.
+            models.UniqueConstraint(
+                fields=('table_number',),
+                condition=models.Q(status='abierta'),
+                name='unique_open_order_per_table',
+            ),
+        ]
+        verbose_name = 'comanda'
+        verbose_name_plural = 'comandas'
+
+    def __str__(self):
+        return f'Comanda #{self.pk} · mesa {self.table_number} ({self.get_status_display()})'
+
+
+class OrderItem(models.Model):
+    """Producto pedido en una comanda; si se vuelve a pedir, se suma la cantidad."""
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='order_items')
+    quantity = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ('id',)
+        constraints = [
+            models.UniqueConstraint(fields=('order', 'product'), name='unique_product_per_order'),
+        ]
+        verbose_name = 'partida de comanda'
+        verbose_name_plural = 'partidas de comanda'
+
+    def __str__(self):
+        return f'{self.quantity} × {self.product.name}'
+
+
+class OrderEvent(models.Model):
+    """Bitácora de una comanda: quién agregó o quitó qué y cuándo. No se edita."""
+
+    class Action(models.TextChoices):
+        ADD = 'agregar', 'Agregar'
+        REMOVE = 'quitar', 'Quitar'
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='events')
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='+')
+    action = models.CharField(max_length=10, choices=Action.choices)
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        null=True,
+        blank=True,
+    )
+    # Copia del nombre: la bitácora sigue legible aunque el producto cambie.
+    product_name = models.CharField(max_length=150)
+    quantity = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('created_at', 'id')
+        verbose_name = 'cambio de comanda'
+        verbose_name_plural = 'cambios de comanda'
+
+    def __str__(self):
+        return f'{self.get_action_display()} {self.quantity} × {self.product_name}'

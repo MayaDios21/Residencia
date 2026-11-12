@@ -21,6 +21,7 @@ from rest_framework.authtoken.models import Token
 from .models import (
     CashSession,
     InventoryMovement,
+    Order,
     Product,
     Sale,
     SaleItem,
@@ -299,6 +300,18 @@ def close_cash_session(user, counted_cash=None, minor_expenses=0, retained_fund=
     if session is None:
         raise CashSessionError('No hay una caja abierta para cerrar.')
 
+    # Una mesa sin cobrar dejaría ventas fuera del corte. No se bloquean las
+    # comandas: el cobro bloquea comanda y luego jornada, y así no se cruzan.
+    open_tables = list(
+        Order.objects
+        .filter(cash_session=session, status=Order.Status.OPEN)
+        .order_by('table_number')
+        .values_list('table_number', flat=True)
+    )
+    if open_tables:
+        tables = ', '.join(str(table) for table in open_tables)
+        raise CashSessionError(f'Faltan por cobrar o cancelar las mesas: {tables}.')
+
     summary = summarize_sales(session)
     minor_expenses = to_money(minor_expenses or 0)
     expected_cash = session.opening_amount + summary['total'] - minor_expenses
@@ -336,18 +349,26 @@ def _merge_quantities(items):
 
 
 @transaction.atomic
-def create_sale(items, user, payment_method=Sale.PaymentMethod.CASH):
+def create_sale(items, user, payment_method=Sale.PaymentMethod.CASH, session=None):
     """Registra una venta calculando precios, IVA y total en el servidor.
 
     Exige la caja de hoy abierta, descuenta el stock de los productos que lo
     controlan y deshace todo si algún producto no tiene existencias suficientes.
+
+    Con ``session`` la venta se registra en esa jornada aunque no sea la de hoy:
+    lo usa el cobro de una comanda, que cuenta en la jornada donde se abrió.
     """
-    session = (
-        CashSession.objects
-        .select_for_update()
-        .filter(business_date=timezone.localdate())
-        .first()
-    )
+    if session is not None:
+        session = CashSession.objects.select_for_update().get(pk=session.pk)
+        if session.status != CashSession.Status.OPEN:
+            raise CashSessionError('La jornada de esta comanda ya fue cerrada.')
+    else:
+        session = (
+            CashSession.objects
+            .select_for_update()
+            .filter(business_date=timezone.localdate())
+            .first()
+        )
     if session is None:
         raise CashSessionError('La caja no está abierta. Registra el fondo inicial para vender.')
     if session.status == CashSession.Status.CLOSED:

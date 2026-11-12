@@ -1,8 +1,8 @@
 /*
  * COMUNICACIÓN CON EL BACKEND
  * Dirección de la API de Django, token de sesión y funciones para llamarla.
- * Todos los datos (catálogo, configuración, caja, ventas, inventario,
- * reportes y usuarios) viven en el servidor; en el navegador solo quedan la
+ * Todos los datos (catálogo, configuración, caja, ventas, comandas,
+ * inventario, reportes y usuarios) viven en el servidor; en el navegador solo quedan la
  * sesión, la pantalla abierta y el carrito en curso. Sin servidor no se
  * registra nada. Es el primer módulo que carga index.html.
  */
@@ -224,8 +224,8 @@ async function getSettingsFromApi() {
 }
 
 /**
- * Cambia el IVA y/o el tipo de cambio (solo administrador).
- * @param {{tax_rate?: string, exchange_rate?: string}} changes
+ * Cambia el IVA, el tipo de cambio y/o el número de mesas (solo administrador).
+ * @param {{tax_rate?: string, exchange_rate?: string, numero_mesas?: number}} changes
  * @returns {Promise<Object>} Configuración actualizada.
  */
 async function updateSettingsInApi(changes) {
@@ -465,5 +465,85 @@ async function resetUserPasswordInApi(userId, password) {
     return apiRequest(`/usuarios/${userId}/restablecer-contrasena/`, {
         method: 'POST',
         body: JSON.stringify({ password })
+    });
+}
+
+// Comandas por mesa (mesero, cajero y administrador; cobrar solo cajero y admin).
+
+/**
+ * Cuadrícula de mesas: cada una libre u ocupada, con su comanda resumida.
+ * @returns {Promise<{numero_mesas: number, mesas: Array<{mesa: number, comanda: Object|null}>}>}
+ */
+async function getTablesFromApi() {
+    return apiRequest('/comandas/mesas/');
+}
+
+/**
+ * Detalle de una comanda: productos, totales del servidor y bitácora.
+ * @param {number} orderId - ID de la comanda.
+ * @returns {Promise<Object>}
+ */
+async function getOrderFromApi(orderId) {
+    return apiRequest(`/comandas/${orderId}/`);
+}
+
+/**
+ * Abre la comanda de una mesa libre con sus primeros productos.
+ * @param {{mesa: number, items: Array<{product_id: number, quantity: number}>}} order
+ * @returns {Promise<Object>} Comanda creada.
+ */
+async function createOrderInApi(order) {
+    return apiRequest('/comandas/', {
+        method: 'POST',
+        body: JSON.stringify(order)
+    });
+}
+
+/**
+ * Agrega productos a una comanda abierta; si ya estaban, suma la cantidad.
+ * @param {number} orderId - ID de la comanda.
+ * @param {Array<{product_id: number, quantity: number}>} items
+ * @returns {Promise<Object>} Comanda actualizada.
+ */
+async function addOrderItemsInApi(orderId, items) {
+    return apiRequest(`/comandas/${orderId}/agregar/`, {
+        method: 'POST',
+        body: JSON.stringify({ items })
+    });
+}
+
+/**
+ * Quita cantidad de un producto de la comanda; en cero lo quita del todo.
+ * @param {number} orderId - ID de la comanda.
+ * @param {number} productId - ID del producto.
+ * @param {number} quantity - Cantidad a quitar.
+ * @returns {Promise<Object>} Comanda actualizada.
+ */
+async function removeOrderItemInApi(orderId, productId, quantity) {
+    return apiRequest(`/comandas/${orderId}/quitar/`, {
+        method: 'POST',
+        body: JSON.stringify({ product_id: productId, quantity })
+    });
+}
+
+/**
+ * Cobra la comanda (solo cajero y administrador) y libera la mesa.
+ * @param {number} orderId - ID de la comanda.
+ * @returns {Promise<Object>} Venta registrada, igual que al vender en caja.
+ */
+async function chargeOrderInApi(orderId) {
+    return apiRequest(`/comandas/${orderId}/cobrar/`, { method: 'POST' });
+}
+
+/**
+ * Cancela la comanda y libera la mesa sin registrar venta.
+ * @param {number} orderId - ID de la comanda.
+ * @param {string} motivo - Obligatorio si la comanda tiene productos.
+ * @returns {Promise<Object>} Comanda cancelada.
+ */
+async function cancelOrderInApi(orderId, motivo = '') {
+    return apiRequest(`/comandas/${orderId}/cancelar/`, {
+        method: 'POST',
+        body: JSON.stringify({ motivo })
     });
 }

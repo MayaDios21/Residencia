@@ -1,4 +1,4 @@
-<!-- Cambios del frontend en la Fase 7 y referencia de la API (Proyecto 1). -->
+<!-- Cambios del frontend en la Fase 7 y referencia de la API (Proyecto 1); comandas y rol mesero (Proyecto 2). -->
 
 # Cambios del frontend
 
@@ -8,6 +8,7 @@ la base de datos y se ven igual en la computadora y en el celular.
 
 - **Parte 1:** lo que cambió a la vista, pantalla por pantalla.
 - **Parte 2:** la referencia de la API, para seguir modificando el frontend.
+- **Parte 3:** comandas por mesa y rol mesero (2026-11-10).
 
 > Antes de editar `FronEnd/` haz `git pull`: cambiaron `index.html`,
 > `css/styles.css` y casi todos los archivos de `js/`.
@@ -329,3 +330,63 @@ Con Django en local y `DJANGO_DEBUG=True`, entra a `http://127.0.0.1:8000/admin/
 como admin y luego abre cualquier ruta (por ejemplo
 `http://127.0.0.1:8000/api/productos/`): DRF muestra la respuesta y un formulario
 para probar `POST`/`PATCH`. Más ejemplos en la sección 8 de `POS/GUIA_PRUEBAS_LOCAL.txt`.
+
+## Parte 3. Comandas y rol mesero
+
+Diseño completo en `docs/superpowers/specs/2026-10-28-comandas-mesero-design.md`.
+El mesero levanta comandas por mesa desde su celular; la comanda no se cierra al
+mandarla y el cajero la cobra desde la caja.
+
+### Lo que cambió a la vista
+
+- **Mesero** (rol nuevo): al entrar va directo a **Mesas**, su única pantalla. No
+  ve Venta, Caja ni Ventas y no se le pide fondo inicial.
+- **Mesas** (`#tables-tab`, `js/orders.js`): cuadrícula con las mesas libres en
+  claro y las ocupadas en color, con productos, subtotal, mesero y hora. Se
+  actualiza sola cada 10 s solo con la cuadrícula en pantalla y la pestaña
+  visible, más el botón **Actualizar**.
+- **Comanda de una mesa:** "Ya en la mesa" con botón − por producto, "Por mandar"
+  con lo que se va tocando del menú y la barra fija **Mandar (n)**. La comanda
+  sigue abierta para agregar más. Mesa vacía: **Cancelar mesa**.
+- **Cajero:** pestaña **Mesas** entre Venta y Cierre de caja, con la misma vista.
+  Además ve subtotal, IVA y total del servidor, la bitácora de cambios y los
+  botones **Cobrar** y **Cancelar comanda** (pide motivo). No puede cerrar caja
+  con mesas abiertas: el aviso dice cuáles.
+- **Administrador:** en Configuración, panel **Mesas** (número de mesas, 1 a
+  100). En Usuarios, el cambio de rol es un selector con Administrador, Cajero y
+  Mesero, y "Mesero" aparece al dar de alta.
+
+### CSS nuevo
+
+| Clase | Para qué |
+|---|---|
+| `.tables-grid`, `.table-card`, `.is-occupied` | Cuadrícula de mesas |
+| `.order-layout`, `.order-panel`, `.order-menu` | Comanda: una columna en celular, dos desde 900 px |
+| `.order-lines`, `.order-line`, `.order-actions`, `.order-log` | Productos, acciones y bitácora |
+| `.order-send-bar` | Barra fija "Mandar" con zona segura del iPhone |
+| `.role-select` | Selector de rol en la tabla de usuarios |
+
+### API — `/api/comandas/` (`orders.js`)
+
+Mesero, cajero y admin; **cobrar solo cajero y admin**. El mesero recibe 403 en
+caja, ventas, configuración, inventario, reportes y usuarios.
+
+| Método y ruta | Cuerpo | Respuesta |
+|---|---|---|
+| `GET /comandas/mesas/` | | `{numero_mesas, mesas: [{mesa, comanda}]}`; `comanda` es `null` o `{id, items_count, subtotal, opened_by, opened_at}` |
+| `GET /comandas/?estado=abierta` | | Lista de comandas |
+| `GET /comandas/{id}/` | | `{id, mesa, status, business_date, opened_by, opened_at, closed_at, cancelled_by, cancel_reason, items, subtotal, tax, total, events}` |
+| `POST /comandas/` | `{mesa, items: [{product_id, quantity}]}` | 201 con la comanda |
+| `POST /comandas/{id}/agregar/` | `{items}` | 200 con la comanda |
+| `POST /comandas/{id}/quitar/` | `{product_id, quantity}` | 200 con la comanda |
+| `POST /comandas/{id}/cobrar/` | | 201 con la venta, igual que `POST /ventas/` |
+| `POST /comandas/{id}/cancelar/` | `{motivo}` | 200; motivo obligatorio con productos; el mesero solo cancela comandas vacías |
+
+- **409:** mesa ocupada, caja cerrada, sin stock (con `product_id` y
+  `available`), comanda ya cobrada o cancelada, cerrar caja con mesas abiertas.
+- **400:** mesa fuera de rango, cantidad < 1, producto inactivo o inexistente,
+  cancelar sin motivo.
+- **La venta cuenta en la jornada de la comanda**, aunque se cobre después de
+  medianoche. `POST /ventas/` sigue exigiendo la caja de hoy.
+- `/configuracion/` trae y acepta `numero_mesas` (solo admin lo cambia; no baja
+  por debajo de una mesa ocupada).

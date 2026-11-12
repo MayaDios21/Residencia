@@ -675,6 +675,17 @@ Probar la version publicada
     En el navegador solo quedan la sesion y el carrito en curso.
   - Cada push a main se publica solo en 1 o 2 minutos. Probar en local antes.
 
+Publicar cambios con migraciones nuevas (por ejemplo, las comandas)
+
+  El codigo publicado lee las columnas nuevas (SystemSettings.table_count se
+  usa tambien al vender), asi que subirlo sin migrar rompe las ventas. Orden:
+
+  1. Probar todo en local (seccion 15).
+  2. Correr "migrate" contra Supabase ANTES del push (comandos de arriba). Es
+     seguro: solo agrega columnas y tablas; el codigo publicado las ignora.
+  3. Hacer push y probar en la version publicada.
+  4. Crear los meseros desde Usuarios en la version publicada.
+
 
 14. PROBAR DESDE CELULAR O TABLETA (WI-FI LOCAL)
 
@@ -717,3 +728,41 @@ aparece en la version local, y al reves.
 Si el celular no carga la pagina: revisar que sea el mismo Wi-Fi, la IP y el
 Firewall. Si carga pero el login falla: revisar que la IP este en
 DJANGO_ALLOWED_HOSTS y en CORS_ALLOWED_ORIGINS.
+
+
+15. PROBAR COMANDAS (MESERO Y CAJERO)
+
+Con los servidores locales arriba (seccion 12) y sin DATABASE_URL definida.
+
+Preparar (una vez): aplicar migraciones, cargar el menu y crear un mesero. El
+mesero se crea igual que el cajero de la seccion 4, con role 'waiter':
+
+  python manage.py migrate
+  python manage.py cargar_menu
+  python manage.py shell -c "from django.contrib.auth.models import User; from pos.models import UserProfile; u,created=User.objects.get_or_create(username='mesero'); u.set_password('1234'); u.save(); UserProfile.objects.update_or_create(user=u, defaults={'role':'waiter'})"
+
+Para probar mesero y cajero a la vez usar dos navegadores distintos (o una
+ventana de incognito): la sesion se guarda por navegador.
+
+Flujo recomendado:
+
+  1. Cajero: entrar y abrir caja (sin caja abierta no se abren comandas).
+  2. Mesero (de preferencia en el celular, seccion 14): entra directo a
+     Mesas. Tocar la mesa 3, tocar 2 tacos y "Mandar". Volver a la mesa,
+     agregar un refresco y "Mandar"; quitar un taco con el boton -.
+  3. Cajero, pestana Mesas: la mesa 3 aparece ocupada. Abrirla: muestra
+     subtotal, IVA, total y "Cambios" (quien agrego o quito cada cosa).
+     "Cobrar": la venta sale en Ventas y la mesa queda libre.
+  4. Abrir otra mesa e intentar cerrar caja: avisa que faltan mesas por
+     cobrar. Cobrarla o cancelarla (con motivo) y cerrar.
+  5. Administrador: en Configuracion cambiar el numero de mesas; en Usuarios
+     cambiar el rol con el selector.
+
+Casos que conviene revisar:
+
+  - Tocar "Mandar" dos veces seguidas: el pedido llega una sola vez.
+  - Dos meseros abren la misma mesa libre: el segundo recibe un aviso, su
+    "Por mandar" se conserva y al volver a mandar se agrega a esa comanda.
+  - Desactivar un producto que esta en una comanda abierta: al cobrar avisa
+    cual es; al quitarlo ya se cobra.
+  - El mesero no ve "Cobrar"; solo puede cancelar una mesa vacia.
