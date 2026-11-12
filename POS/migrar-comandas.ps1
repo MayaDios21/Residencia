@@ -3,8 +3,8 @@
 
     Aplica en Supabase las migraciones 0007 (rol mesero) y 0008 (tablas de
     comandas y número de mesas). Solo agregan cosas: el sistema publicado sigue
-    funcionando igual antes y después de correrlo. El código de las comandas se
-    sube a main cuando esto ya esté hecho.
+    funcionando igual antes y después de correrlo. Después de esto se hace
+    "git push origin main" para publicar las comandas (nunca antes).
 
     Pasos que hace, y se detiene si algo falla:
       1. Trae lo último de main.
@@ -106,7 +106,7 @@ try {
 
     Write-Host ''
     Write-Host 'Listo: Supabase migrado. Arriba deben verse [X] 0007_waiter_role y [X] 0008_orders_and_tables.' -ForegroundColor Green
-    Write-Host 'Avísale a csvela para que suba el código de las comandas.' -ForegroundColor Green
+    Write-Host 'Ahora sí puedes publicar las comandas con: git push origin main' -ForegroundColor Green
 }
 catch {
     Write-Host ''

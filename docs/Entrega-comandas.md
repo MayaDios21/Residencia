@@ -4,22 +4,27 @@
 
 **Para:** Diego · **De:** csvela · **Actualizada:** 2026-11-12
 
-Las comandas ya están programadas y probadas en local. Para publicarlas solo
-falta que Supabase tenga las tablas nuevas. **Tu parte es solo esa: migrar
-Supabase.** No hay ramas: todo está en `main`.
+Las comandas ya están programadas y probadas en local. Para publicarlas falta
+migrar Supabase y subir el código a `main`. **Esas dos cosas te tocan a ti**,
+porque solo tú tienes acceso a Supabase. No hay ramas: el trabajo te llega en un
+archivo.
 
 ## Cómo va a quedar todo
 
-1. **Ya está en `main`:** las dos migraciones (`0007` y `0008`) y el script
-   `POS/migrar-comandas.ps1`. Sin el código de las comandas, el sistema
-   publicado funciona exactamente igual que antes.
-2. **Tú:** migras Supabase con el script (abajo, paso a paso).
-3. **csvela:** cuando le avises, sube el código de las comandas a `main` y Vercel
-   las publica.
+1. **csvela te manda** el archivo `comandas-para-diego.bundle` (un paquete de
+   git con tres commits: migraciones, script y código de las comandas).
+2. **Tú lo cargas** en tu `main` local con un comando (parte B).
+3. **Tú migras Supabase** con el script `POS/migrar-comandas.ps1`.
+4. **Tú publicas** con `git push origin main`. Como la base ya está migrada,
+   Vercel publica las comandas sin romper nada.
 
-Se probó que el sistema publicado funciona igual sobre una base ya migrada
-(login, caja, ventas, cancelaciones, catálogo, usuarios, panel y cierre de
-caja), así que la migración no rompe nada aunque pase tiempo antes del paso 3.
+**Importante: no hagas el push antes de migrar.** Vercel publica solo cada push
+a `main`, y el código nuevo necesita las tablas nuevas; sin ellas se rompen las
+ventas del sistema real.
+
+Se probó que el sistema publicado hoy funciona igual sobre una base ya migrada
+(159 pruebas del código actual pasan con las migraciones), así que migrar no
+rompe nada aunque pase tiempo entre la parte C y la D.
 
 ## Paso a paso
 
@@ -53,16 +58,39 @@ entrar a la base.
    **Ready** y entra a `https://pos-el-compita.vercel.app`: si el login
    funciona, la cadena es correcta.
 
-### Parte B. Correr el script
+### Parte B. Cargar el paquete
 
-1. Abre **PowerShell** y entra a la carpeta del repositorio (la que tiene `POS`
+1. Guarda `comandas-para-diego.bundle` en tu computadora, por ejemplo en
+   `C:\Users\dmaya\Downloads`.
+
+2. Abre **PowerShell** y entra a la carpeta del repositorio (la que tiene `POS`
    y `docs`):
 
    ```powershell
    cd C:\Users\dmaya\Residencia
    ```
 
-2. Corre el script (él mismo hace el `git pull` de `main`):
+3. Ponte en `main` al día y carga el paquete:
+
+   ```powershell
+   git switch main
+   git pull origin main
+   git pull C:\Users\dmaya\Downloads\comandas-para-diego.bundle main
+   ```
+
+4. Revisa que llegaron los tres commits:
+
+   ```powershell
+   git log --oneline -4
+   ```
+
+   Deben verse, de arriba hacia abajo: *Instrucciones de entrega por archivo*,
+   *Comandas por mesa y rol mesero*, *Migraciones de comandas y script para
+   migrar Supabase* y *Doc de cambios*.
+
+### Parte C. Migrar Supabase con el script
+
+1. En la misma carpeta, corre el script:
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\POS\migrar-comandas.ps1
@@ -73,18 +101,23 @@ entrar a la base.
    | Lo que verás | Qué hacer |
    |---|---|
    | `==> 1/3 Traer lo último de main` | Nada, es automático |
-   | `==> 2/3 Pruebas...` y al final `OK` | Esperar unos 2 minutos |
+   | `==> 2/3 Pruebas...` y al final `Ran 218 tests` y `OK` | Esperar unos 2 minutos |
    | `==> 3/3 Migrar Supabase` y `DATABASE_URL:` | Pegar la cadena de la parte A (no se ve al pegarla) y Enter |
    | `[X] 0007_waiter_role` y `[X] 0008_orders_and_tables` | Confirmar que las dos tienen `[X]` |
-   | `Listo: Supabase migrado` | Pasar a la parte C |
+   | `Listo: Supabase migrado` | Pasar a la parte D |
 
    Si antes quieres revisar que todo está bien sin tocar Supabase, agrega
    `-SoloProbar` al final del comando.
 
-### Parte C. Avisar
+### Parte D. Publicar
 
-Avísale a csvela: *"ya migré Supabase"*. Ella sube el código de las comandas y
-en 2 minutos están publicadas. Luego, en `https://pos-el-compita.vercel.app`:
+Solo después de ver `Listo: Supabase migrado`:
+
+```powershell
+git push origin main
+```
+
+Vercel publica en 1 o 2 minutos. Luego, en `https://pos-el-compita.vercel.app`:
 
 1. **Admin:** Configuración ▸ **Mesas**: pon cuántas mesas hay.
 2. **Admin:** Usuarios ▸ crea un usuario con rol **Mesero**.
@@ -101,19 +134,20 @@ en 2 minutos están publicadas. Luego, en `https://pos-el-compita.vercel.app`:
 |---|---|---|
 | Parte A, el login ya no funciona | Vercel no tiene la cadena nueva o falta el Redeploy | Revisar `DATABASE_URL` en Vercel, guardar y hacer Redeploy |
 | Paso 1/3 "cambios sin guardar" | Tienes archivos modificados en tu copia | `git stash` y volver a correr el script |
-| Paso 1/3 "No llegó la migración" | El pull no trajo los archivos | Correr `git pull origin main` y revisar el mensaje |
+| Parte B, error al cargar el paquete | La ruta del archivo está mal o no estás en `main` | Revisar la ruta y correr `git switch main` |
+| Paso 1/3 "No llegó la migración" | El paquete no se cargó | Repetir la parte B y revisar el `git log` |
 | Paso 2/3, pruebas en rojo | Algo distinto en tu entorno | Mandar captura; Supabase no se tocó |
 | Paso 3/3, error al migrar | La cadena está mal o Supabase está pausado | Revisar la cadena; si Supabase está pausado, reactivarlo desde su panel |
 
 En cualquier error el script se puede volver a correr. La migración tampoco se
 duplica si se corre dos veces.
 
-## ⚠️ Mientras tanto: no correr `makemigrations`
+## Si algo sale mal después de publicar
 
-Hasta que csvela suba el código, `main` tiene las migraciones pero todavía no
-los modelos de las comandas. Si alguien corre `manage.py makemigrations` en ese
-rato, Django crearía una migración que **borra** las tablas nuevas. Hay que
-esperar a que esté el código completo.
+Si después del push algo falla en el sistema publicado, se puede regresar a la
+versión anterior desde Vercel ▸ **Deployments** ▸ el despliegue anterior ▸
+**⋯** ▸ **Promote to Production**. La base migrada no estorba: el código
+anterior funciona con ella (probado).
 
 ## Qué cambia en el backend con las comandas
 
