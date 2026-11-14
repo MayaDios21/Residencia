@@ -34,39 +34,3 @@ if (document.readyState === 'loading') {
 } else {
     initializeSystem();
 }
-
-// Utilidades de mantenimiento para usar desde la consola del navegador.
-window.limpiar = function() {
-    localStorage.clear();
-    location.reload();
-};
-
-/**
- * Utilidad de consola: imprime el estado de productos, categorías, carrito y
- * de la pantalla para depurar.
- */
-window.diagnosticar = function() {
-    console.clear();
-    console.log('='.repeat(50));
-    console.log('DIAGNÓSTICO DEL SISTEMA POS');
-    console.log('='.repeat(50));
-    
-    console.log('\nESTADO ACTUAL:');
-    console.log(`  - Productos en memoria: ${products.length}`);
-    console.log(`  - Categorías en memoria: ${categories.length}`);
-    console.log(`  - Items en carrito: ${cart.length}`);
-    console.log(`  - Categoría activa: ${activeCategory}`);
-    console.log(`  - API: ${API_URL}`);
-    if (products.length > 0) console.log('  - Primer producto:', products[0]);
-
-    console.log('\nELEMENTOS DEL DOM:');
-    console.log(`  - products-grid: ${document.getElementById('products-grid') ? 'EXISTE' : 'NO EXISTE'}`);
-    console.log(`  - category-tabs: ${document.getElementById('category-tabs') ? 'EXISTE' : 'NO EXISTE'}`);
-    console.log(`  - cart-items: ${document.getElementById('cart-items') ? 'EXISTE' : 'NO EXISTE'}`);
-    
-    console.log('\n' + '='.repeat(50));
-    console.log('COMANDOS ÚTILES:');
-    console.log('  - refreshCatalog() → Volver a pedir el catálogo al servidor');
-    console.log('  - loadCategoryTabs() → Recargar pestañas');
-    console.log('='.repeat(50));
-}

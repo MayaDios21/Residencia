@@ -11,6 +11,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from .exports import safe_row
 from .models import CashSession
 from .permissions import IsAdminRole, IsPosUser
 from .serializers import (
@@ -105,7 +106,7 @@ class CashBoxViewSet(viewsets.GenericViewSet):
             'Fondo retenido', 'Abrió', 'Cerró', 'Hora de cierre',
         ])
         for session in sessions:
-            writer.writerow([
+            writer.writerow(safe_row([
                 session.business_date.isoformat(),
                 session.opening_amount,
                 session.sales_count,
@@ -121,5 +122,5 @@ class CashBoxViewSet(viewsets.GenericViewSet):
                     timezone.localtime(session.closed_at).strftime('%Y-%m-%d %H:%M')
                     if session.closed_at else ''
                 ),
-            ])
+            ]))
         return response

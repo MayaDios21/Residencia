@@ -191,6 +191,19 @@ async function restoreSession() {
     enterApp(localStorage.getItem(CURRENT_TAB_STORAGE_KEY));
 }
 
+/**
+ * La sesión dejó de valer en el servidor (token caducado o revocado): limpia
+ * lo guardado y regresa al inicio de sesión. Si ya se atendió, no hace nada.
+ */
+function handleExpiredSession() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    if (!adminSession) return;
+    adminSession = null;
+    clearSessionStorage();
+    showLoginScreen();
+    showNotification('Tu sesión expiró. Inicia sesión de nuevo.');
+}
+
 /** Cierra la sesión de API y devuelve a la pantalla inicial. */
 async function logoutSession() {
     try {

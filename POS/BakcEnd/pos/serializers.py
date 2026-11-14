@@ -4,6 +4,7 @@ llegan (inicio de sesión, usuarios, catálogo, inventario, configuración, caja
 ventas y comandas).
 """
 
+import re
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -25,6 +26,18 @@ from .models import (
 )
 from .order_services import summarize_order
 from .services import to_money
+
+# Imagen de producto: ruta relativa a un archivo de imagen (sin ":" para que no
+# sea javascript: ni otro esquema), foto en base64 o dirección https.
+PRODUCT_IMAGE_PATTERN = re.compile(
+    r'^(?:'
+    r'[^:"\'<>\\]+\.(?:png|jpe?g|gif|webp)'
+    r'|data:image/(?:png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+'
+    r'|https://[^\s"\'<>\\]+'
+    r')$',
+    re.IGNORECASE,
+)
+MAX_PRODUCT_IMAGE_LENGTH = 500_000
 
 
 class LoginSerializer(serializers.Serializer):
@@ -89,6 +102,23 @@ class ProductSerializer(serializers.ModelSerializer):
     def validate_price(self, value):
         if value < 0:
             raise serializers.ValidationError('El precio no puede ser negativo.')
+        return value
+
+    def validate_image(self, value):
+        """Solo imágenes del menú (../Public/...), fotos subidas en base64 o https.
+
+        Bloquea javascript:, SVG (puede llevar código) y textos enormes. El
+        frontend comprime las fotos a 400 px, que pesan unos 50 KB.
+        """
+        value = value.strip()
+        if not value:
+            return value
+        if len(value) > MAX_PRODUCT_IMAGE_LENGTH:
+            raise serializers.ValidationError('La imagen es demasiado grande (máximo 500 KB).')
+        if not PRODUCT_IMAGE_PATTERN.match(value):
+            raise serializers.ValidationError(
+                'Imagen no válida: usa una foto PNG, JPG, GIF o WEBP.'
+            )
         return value
 
 

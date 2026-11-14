@@ -11,7 +11,11 @@ Más información:
 from django.contrib import admin
 from django.urls import include, path
 
+from pos.views import admin_login
+
 urlpatterns = [
+    # Va antes de admin.site.urls para que el login del panel tenga límite de intentos.
+    path('admin/login/', admin_login, name='admin-login'),
     path('admin/', admin.site.urls),
     path('api/auth/', include('pos.auth_urls')),
     path('api/inventario/', include('pos.inventory_urls')),

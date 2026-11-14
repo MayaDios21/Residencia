@@ -180,6 +180,10 @@ LOGIN_FAILURE_WINDOW_SECONDS = 60
 # En local se deja apagado para que nadie evada el límite con ese encabezado.
 TRUST_X_FORWARDED_FOR = ON_VERCEL
 
+# Horas que dura una sesión (token) antes de pedir login de nuevo. Cubre un
+# turno largo; ver pos/authentication.py.
+TOKEN_TTL_HOURS = 16
+
 # Algoritmo de reabastecimiento: días de historial que se promedian y días que
 # tarda en llegar un pedido (dato del negocio: 2 días).
 RESTOCK_WINDOW_DAYS = 14
@@ -187,7 +191,7 @@ RESTOCK_LEAD_DAYS = 2
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',
+        'pos.authentication.ExpiringTokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -238,5 +242,11 @@ if ON_VERCEL:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 365
+    # Igual que lo que Vercel ya manda en la página (vercel.app solo usa HTTPS).
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = 'same-origin'
+    # La sesión de /admin/ se cierra al cerrar el navegador y dura máximo 8 horas.
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+    SESSION_COOKIE_AGE = 60 * 60 * 8

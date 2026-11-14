@@ -15,6 +15,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from .exports import safe_row
 from .models import Sale, SaleItem, UserProfile
 from .permissions import IsAdminRole, IsPosUser
 from .serializers import CancelSaleSerializer, SaleCreateSerializer, SaleSerializer
@@ -164,7 +165,7 @@ class SaleViewSet(
         for sale in sales:
             created = timezone.localtime(sale.created_at)
             items = list(sale.items.all())
-            writer.writerow([
+            writer.writerow(safe_row([
                 sale.pk,
                 created.strftime('%Y-%m-%d'),
                 created.strftime('%H:%M'),
@@ -177,7 +178,7 @@ class SaleViewSet(
                 sale.tax,
                 sale.total,
                 sale.payment_method,
-            ])
+            ]))
         return response
 
     @action(detail=False, methods=['get'], url_path='verificar', name='Verificar ventas')

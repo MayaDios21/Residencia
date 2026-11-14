@@ -71,12 +71,7 @@ function getOrderDraftCount() {
  */
 function handleOrderSessionError(error) {
     if (error.status !== 401) return false;
-    stopTablesPolling();
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    clearSessionStorage();
-    adminSession = null;
-    showLoginScreen();
-    showNotification('Tu sesión expiró. Inicia sesión de nuevo.');
+    handleExpiredSession();
     return true;
 }
 

@@ -56,6 +56,11 @@ async function apiRequest(path, options = {}) {
         data = null;
     }
 
+    // El token caducó o se revocó a media sesión: se regresa al inicio de sesión.
+    if (response.status === 401 && token) {
+        handleExpiredSession();
+    }
+
     if (!response.ok) {
         const message = data?.detail || data?.message || getFirstFieldError(data)
             || 'Error de comunicación con el servidor';

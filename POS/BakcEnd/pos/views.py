@@ -4,8 +4,10 @@ intentos fallidos, cierre de sesión y datos del usuario actual.
 """
 
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth import authenticate
 from django.core.cache import cache
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
@@ -13,6 +15,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .authentication import token_is_expired
 from .serializers import LoginSerializer, UserSerializer
 
 
@@ -44,6 +47,29 @@ def register_failed_login(request):
         cache.set(key, 1, timeout=settings.LOGIN_FAILURE_WINDOW_SECONDS)
 
 
+def is_login_blocked(request):
+    """True si la IP ya agotó sus intentos fallidos en la ventana actual."""
+    return cache.get(get_failed_login_key(request), 0) >= settings.LOGIN_MAX_FAILED_ATTEMPTS
+
+
+def admin_login(request, extra_context=None):
+    """Login del panel /admin/ con el mismo límite de intentos que la API.
+
+    Sin esto, /admin/login/ permitiría probar contraseñas sin límite.
+    """
+    if request.method == 'POST' and is_login_blocked(request):
+        return HttpResponse(
+            'Demasiados intentos fallidos. Espera un minuto e intenta de nuevo.',
+            status=429,
+            content_type='text/plain; charset=utf-8',
+        )
+    response = admin.site.login(request, extra_context)
+    # Si el login sale bien redirige (302); si vuelve a mostrar el formulario, falló.
+    if request.method == 'POST' and response.status_code == 200:
+        register_failed_login(request)
+    return response
+
+
 class LoginView(ObtainAuthToken):
     """Inicio de sesión con usuario y contraseña, con límite de intentos fallidos
     por dirección IP. El rol (cajero o administrador) se toma del perfil.
@@ -56,7 +82,7 @@ class LoginView(ObtainAuthToken):
         incluido su rol. Rechaza a usuarios sin perfil y bloquea temporalmente
         la IP tras demasiados intentos fallidos.
         """
-        if cache.get(get_failed_login_key(request), 0) >= settings.LOGIN_MAX_FAILED_ATTEMPTS:
+        if is_login_blocked(request):
             return Response(
                 {'detail': 'Demasiados intentos fallidos. Espera un minuto e intenta de nuevo.'},
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -79,6 +105,10 @@ class LoginView(ObtainAuthToken):
             )
 
         token, _ = Token.objects.get_or_create(user=user)
+        if token_is_expired(token):
+            # El token viejo ya no sirve: se cambia por uno nuevo con su propio plazo.
+            token.delete()
+            token = Token.objects.create(user=user)
         return Response({
             'token': token.key,
             'user': UserSerializer(user).data,
